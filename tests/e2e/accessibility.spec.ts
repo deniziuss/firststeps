@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { createJourney, register, uniqueEmail } from "./helpers";
 
 // Automated WCAG 2.2 A/AA checks with axe-core. They cover what can be detected automatically

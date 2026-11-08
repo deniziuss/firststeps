@@ -1,4 +1,5 @@
-import { expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, setLocaleCookie } from "./fixtures";
 
 export const PASSWORD = `E2e-${Date.now()}-pass`;
 
@@ -86,11 +87,19 @@ export function formStatus(page: Page) {
 
 // Sets the language cookie for the whole site (the proxy reads it on every request).
 export async function useLocale(page: Page, locale: "en" | "tr") {
-  // Host-only, like the cookie the proxy sets, so it replaces that cookie instead of adding a second one.
-  await page.context().addCookies([{ name: "fs_locale", value: locale, url: new URL("/", page.url()).href }]);
+  await setLocaleCookie(page.context(), locale);
 }
 
 // The task page's status panel (English or Turkish heading).
 export function statusPanel(page: Page) {
   return page.locator("section", { has: page.getByRole("heading", { name: /^(Status|Durum)$/ }) }).filter({ visible: true });
+}
+
+// Tasks listed on the journey page that still apply (rows marked "not needed" are excluded),
+// so progress assertions compare against what the student actually sees.
+export async function applicableTaskCount(page: Page, notNeededLabel: string) {
+  const rows = page.locator('main a[href^="/tasks/"]').filter({ visible: true });
+  const total = await rows.count();
+  const notNeeded = await rows.filter({ hasText: notNeededLabel }).count();
+  return total - notNeeded;
 }

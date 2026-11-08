@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { button, createJourney, formAlert, formStatus, goToTask, openTask, register, signOut, statusPanel, uniqueEmail } from "./helpers";
+import { expect, test } from "./fixtures";
+import { applicableTaskCount, button, createJourney, formAlert, formStatus, goToTask, openTask, register, signOut, statusPanel, uniqueEmail } from "./helpers";
 
 test("student registers, builds a plan and follows prerequisites", async ({ page }) => {
   await register(page, "Erin", uniqueEmail("student"));
@@ -60,11 +60,13 @@ test("student registers, builds a plan and follows prerequisites", async ({ page
   await expect(page.getByRole("link", { name: /Confirm check-in details/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Arrange accommodation/ })).toContainText("Not needed");
   await expect(page.getByRole("link", { name: /Register at the international office/ })).toContainText("Done");
+  const total = await applicableTaskCount(page, "Not needed");
+  await expect(page.getByText(`1 of ${total} tasks done`, { exact: true })).toBeVisible();
 
-  // A14 / A17: dashboard and report use the stored data.
+  // A14 / A17: the dashboard counts the same tasks as the journey page; the report lists them.
   await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Your next step" })).toBeVisible();
-  await expect(page.getByText(/^1 of d+ tasks done$/)).toBeVisible();
+  await expect(page.getByText(`1 of ${total} tasks done`, { exact: true })).toBeVisible();
   await page.goto(`/journey/${journeyId}/report`);
   await expect(page.getByRole("heading", { name: "Open tasks in order" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Register at the international office" })).toBeVisible();

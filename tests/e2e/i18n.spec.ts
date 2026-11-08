@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { button, formAlert, formStatus, statusPanel, uniqueEmail } from "./helpers";
+import { expect, test } from "./fixtures";
+import { applicableTaskCount, button, formAlert, formStatus, statusPanel, uniqueEmail } from "./helpers";
 
 const PASSWORD = "Turkce-akis-2026";
 
@@ -58,6 +58,8 @@ test("full student flow in Turkish: register, plan, complete a task, ask for hel
 
   // Dates use Turkish formatting.
   await expect(page.getByText("Varış 1 Şub 2027")).toBeVisible();
+  const total = await applicableTaskCount(page, "Gerekmiyor");
+  expect(total).toBeGreaterThan(0);
 
   await page.getByRole("link", { name: /^Uluslararası ofise kayıt ol/ }).click();
   await page.waitForLoadState("networkidle");
@@ -67,7 +69,8 @@ test("full student flow in Turkish: register, plan, complete a task, ask for hel
 
   await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Sıradaki adımın" })).toBeVisible();
-  await expect(page.getByText(/^d+ görevden 1 tanesi tamamlandı$/)).toBeVisible();
+  // The dashboard counts the same tasks the journey page lists.
+  await expect(page.getByText(`${total} görevden 1 tanesi tamamlandı`, { exact: true })).toBeVisible();
 
   // A locked task explains why in Turkish, and the server refuses a forced completion in Turkish.
   await page.goto(new URL(page.url()).origin + "/journey");

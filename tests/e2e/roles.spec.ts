@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import type { Browser } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { adminCredentials, button, createJourney, formAlert, mentorCredentials, openTask, PASSWORD, register, signIn, signOut, uniqueEmail, useLocale } from "./helpers";
 
 test("anonymous visitors are sent to sign in", async ({ page }) => {
@@ -83,7 +84,24 @@ test("help request is assigned by admin and answered by the mentor only", async 
   await expect(page.getByText("Student cards are sold at the main ticket office")).toBeVisible();
 });
 
-test("admin edits content: template, translation, cycle check", async ({ page }) => {
+// Deactivates a test template from its own admin session, so a failure mid-test cannot leave it
+// active and change the task lists of later tests.
+async function deactivateTemplate(browser: Browser, templateUrl: string) {
+  const admin = adminCredentials();
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await signIn(page, admin.email, admin.password);
+  await page.goto(templateUrl);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel(/Active/).uncheck();
+  await button(page, "Save changes").click();
+  await expect(button(page, "Save changes")).toBeEnabled();
+  await page.reload();
+  await expect(page.getByLabel(/Active/)).not.toBeChecked();
+  await context.close();
+}
+
+test("admin edits content: template, translation, cycle check", async ({ page, browser }) => {
   const admin = adminCredentials();
   test.skip(!admin.email, "Run npm run db:seed-users first.");
   await signIn(page, admin.email, admin.password);
@@ -105,28 +123,52 @@ test("admin edits content: template, translation, cycle check", async ({ page })
   await page.getByLabel("Category").fill("University");
   await button(page, "Create task").click();
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-  await page.waitForLoadState("networkidle");
-  await page.getByLabel("Title (Turkish)").fill(`E2E hoş geldin paketi ${title.slice(-6)}`);
-  await button(page, "Save translation").click();
-  await expect(page.getByText("Translation saved.")).toBeVisible();
   const templateUrl = page.url();
-  await signOut(page);
+  try {
+    await signOut(page);
 
-  await register(page, "Nora", uniqueEmail("tpl"));
-  await createJourney(page, { arrival: "2027-06-01" });
-  await expect(page.getByRole("link", { name: new RegExp(title) })).toBeVisible();
-  await page.goto(`/tr${new URL(page.url()).pathname}`);
-  await expect(page.getByRole("link", { name: new RegExp(`E2E hoş geldin paketi ${title.slice(-6)}`) })).toBeVisible();
-  await useLocale(page, "en");
-  await signOut(page);
+    // The new task reaches a new journey.
+    await register(page, "Nora", uniqueEmail("tpl"));
+    const journeyId = await createJourney(page, { arrival: "2027-06-01" });
+    await expect(page.getByRole("link", { name: new RegExp(`^${title}`) })).toBeVisible();
 
-  // Deactivate the test template so it does not affect later journeys.
-  await signIn(page, admin.email, admin.password);
-  await page.goto(templateUrl);
-  await page.waitForLoadState("networkidle");
-  await page.getByLabel(/Active/).uncheck();
-  await button(page, "Save changes").click();
-  await expect(button(page, "Save changes")).toBeEnabled();
-  await page.reload();
-  await expect(page.getByLabel(/Active/)).not.toBeChecked();
+    // Turkish views run in a separate browser context with the same student session, so the
+    // language of this test's own context never changes.
+    const student = await page.context().storageState();
+    const turkish = await browser.newContext({ storageState: student });
+    const trPage = await turkish.newPage();
+    await useLocale(trPage, "tr");
+
+    // Without a Turkish translation the English text is shown, with a notice.
+    await trPage.goto(`/journey/${journeyId}`);
+    await expect(trPage.locator("html")).toHaveAttribute("lang", "tr");
+    await trPage.getByRole("link", { name: new RegExp(`^${title}`) }).click();
+    await expect(trPage.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    await expect(trPage.getByText("Bu içerik henüz Türkçe değil. İngilizce metni gösteriyoruz.")).toBeVisible();
+    const taskPath = new URL(trPage.url()).pathname;
+
+    // The admin adds the translation (own session); the student then sees the Turkish title without the notice.
+    const titleTr = `E2E hoş geldin paketi ${title.slice(-6)}`;
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+    await signIn(adminPage, admin.email, admin.password);
+    await adminPage.goto(templateUrl);
+    await adminPage.waitForLoadState("networkidle");
+    await adminPage.getByLabel("Title (Turkish)").fill(titleTr);
+    await button(adminPage, "Save translation").click();
+    await expect(adminPage.getByText("Translation saved.")).toBeVisible();
+    await adminContext.close();
+
+    await trPage.goto(taskPath);
+    await expect(trPage.getByRole("heading", { level: 1, name: titleTr })).toBeVisible();
+    await expect(trPage.getByText("Bu içerik henüz Türkçe değil. İngilizce metni gösteriyoruz.")).toHaveCount(0);
+    await turkish.close();
+
+    // This test's own context is still English.
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByRole("link", { name: new RegExp(`^${title}`) })).toBeVisible();
+  } finally {
+    await deactivateTemplate(browser, templateUrl);
+  }
 });
