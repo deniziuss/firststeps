@@ -55,7 +55,7 @@ Prisma is compatible, but lost defaults on introspection, error numbers only as 
 - **NotApplicable:** set only by re-planning; students cannot choose it.
 - **Re-planning (accommodation change):** newly applicable tasks are added, open tasks that no longer apply become `NotApplicable`, `NotApplicable` tasks that apply again are reopened. No rows are deleted and completed tasks are never changed.
 - **Cycle check:** depth-first search when an admin adds a dependency; the cycle path is shown in the error.
-- **Missing / NotApplicable prerequisites:** see [issues/001](issues/001-prerequisite-satisfaction.md).
+- **Missing / NotApplicable prerequisites:** a prerequisite that does not apply to the journey is reported as `notApplicable` (still locked by the trigger; proposal 0003 pending). A prerequisite that applies but is missing from the journey (data gap) is reported as `missing`, and *Update my plan* adds it. See [issues/001](issues/001-prerequisite-satisfaction.md).
 
 A `THROW` inside a trigger dooms the transaction. `withTransaction` rolls back and the error is translated to a user message (`src/server/errors.ts`).
 

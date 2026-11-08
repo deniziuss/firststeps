@@ -18,18 +18,29 @@ Last updated: 2026-11-08
 | Internationalization | Done | `src/i18n` dictionaries (en, tr) with compile-time key checks; locale routing via `src/proxy.ts` and `next/root-params`; translated validation and server messages; `Intl` dates and numbers |
 | Bilingual content | Done | Migration `0002_content_translations.sql` (local only); Turkish seed for 18 tasks and 9 sources; English fallback with a notice; admins edit Turkish titles and descriptions |
 | Reliability fix | Done | Local DB: `AUTO_CLOSE OFF` and `min server memory` 512 MB, after concurrent page loads stalled on `RESOURCE_SEMAPHORE` waits (see database.md) |
-| Tests | Done | 35 unit, 14 E2E (two consecutive green runs), 10 database checks, axe-core WCAG 2.2 AA in both languages and themes, bilingual screen sweep |
+| Tests | Done | 36 unit, 19 E2E (two consecutive green runs), 10 database checks, axe-core WCAG 2.2 AA on public, student, admin and mentor pages in both languages and themes, bilingual screen sweep |
 
-## Results (2026-11-08)
-Typecheck, lint and production build pass · unit 35/35 · E2E 14/14 in two consecutive runs · database verification 10/10 · axe-core: no violations on public and student pages (en/tr, light/dark) · screen sweep of every page in en/tr, light/dark, 360 px and 1280 px: no untranslated text, raw keys, overflow or empty titles (admin exceptions below) · `npm audit --omit=dev`: 0 vulnerabilities.
+## v0.0.1-alpha: final quality review (2026-11-08)
+| Area | Result |
+|---|---|
+| Issue 001 | Data gap (an applicable prerequisite missing from the journey) separated from "does not apply"; *Update my plan* repairs the gap (unit and E2E tests). The trigger change for prerequisites that do not apply is a proposal (`database/proposals/0003`), tested in a rolled-back transaction and not applied |
+| Accessibility | axe-core now also covers 8 admin pages, the mentor list and a mentor request page, and settings for both roles: en/tr × light/dark, no violations |
+| Turkish interface | Runtime scan of every Turkish page, including hidden screen reader text and attributes. Fixed: the mobile menu close button was announced as "Close". Remaining English is content, not interface (see open items) |
+| Test data | `npm run db:cleanup-test-data`: dry run by default, test accounts only, rolled-back self-test. Each E2E run removes its own records |
+| Screens | Task page: on phones the status and prerequisites now come before the help section, with the status badge under the title. Document title names the task. Admin task page: fields aligned; related tasks shown with Turkish titles in Turkish |
+
+## Results (2026-11-08, after the final review)
+Typecheck, lint and production build pass · unit 36/36 · E2E 19/19 in two consecutive runs · database verification 10/10 · axe-core: no violations on public and student pages (en/tr, light/dark) · screen sweep of every page in en/tr, light/dark, 360 px and 1280 px: no untranslated text, raw keys, overflow or empty titles (admin exceptions below) · `npm audit --omit=dev`: 0 vulnerabilities.
 
 ## Open items
-1. **Prerequisite rule ([issues/001](issues/001-prerequisite-satisfaction.md))**: product decision on missing / not-applicable prerequisites is still open.
+1. **Prerequisite rule ([issues/001](issues/001-prerequisite-satisfaction.md))**: data gaps are repaired. For prerequisites that do not apply, proposal 0003 waits for a decision; until then such tasks stay locked with an explanation and a help prompt.
 2. **Content**: task and source texts are synthetic drafts; all sources are `PendingReview`. The Turkish translations are drafts too.
 3. **Admin in Turkish**: admins edit the English source text, so the English title stays visible under the Turkish one and category codes (`University`, `Housing`, …) are entered as stored.
-4. **Accessibility**: automated checks cover admin and mentor screens only through the sweep, not axe; a manual screen reader review has not been done.
-5. **CI**: database-backed and end-to-end tests run locally only.
-6. **Not yet implemented**: email verification, password reset, audit trail, real-time chat, deployment.
+4. **Accessibility**: automated checks only; a manual screen reader and keyboard review of all flows has not been done.
+5. **Content shown in English in Turkish**: help request texts written by students, university and person names, URLs, and on admin task pages the English base text that admins edit. These are data, not interface text.
+6. **Smaller UX items**: the admin user list has no search or paging; the progress report lists locked tasks as "To do"; mentor and admin detail pages still use generic document titles.
+7. **CI**: database-backed and end-to-end tests run locally only.
+8. **Not yet implemented**: email verification, password reset, audit trail, real-time chat, deployment.
 
 ## Working agreement
 - `main` stays green: typecheck, lint, unit tests and build pass before every push; database and E2E tests run locally for changes that touch them.

@@ -103,8 +103,9 @@ See [`.env.example`](.env.example). The app refuses to start its database connec
 | `npm run lint` | ESLint |
 | `npm test` | Unit tests: business rules, translation dictionaries (same keys, placeholders, every key used in code exists) |
 | `npm run build` | Production build |
-| `npm run test:e2e` | Playwright end-to-end tests against a local production build: student, mentor and admin flows in English and Turkish, language switching, accessibility (needs the local database, seeded users and Microsoft Edge) |
+| `npm run test:e2e` | Playwright end-to-end tests against a local production build: student, mentor and admin flows in English and Turkish, language switching, accessibility (needs the local database, seeded users and Microsoft Edge). At the end of a run its own synthetic records are removed; set `E2E_KEEP_DATA=1` to keep them |
 | `npm run db:local:setup` | Includes `database/local/04_verify.sql`: object counts and trigger/procedure behaviour, rolled back |
+| `npm run db:cleanup-test-data` | Dry run listing synthetic test records in `FirstSteps_Dev`; `-- --apply` deletes them, `-- --self-test` checks the safety rules (only `e2e+`/`sweep+`… students at `@example.invalid` and inactive `E2E …` templates are ever matched) |
 
 GitHub Actions runs install, typecheck, lint, unit tests and the production build on every push and pull request. Database-backed and end-to-end tests run locally only for now.
 

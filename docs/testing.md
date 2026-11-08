@@ -9,6 +9,7 @@
 | End-to-end (Playwright, Microsoft Edge, production build on port 3100) | `npm run test:e2e` | Local only (needs the database) |
 | Database behaviour | `npm run db:local:setup` (`04_verify.sql`) | Local only |
 | Accessibility (axe-core, WCAG 2.2 AA rules) | part of `npm run test:e2e` | Local only |
+| Test data cleanup rules | `npm run db:cleanup-test-data -- --self-test` | Local only |
 | Dependency audit | `npm audit --omit=dev` | Local |
 
 End-to-end tests sign in with the synthetic admin and mentor accounts from `.env.local` (`npm run db:seed-users`).
@@ -18,15 +19,33 @@ End-to-end tests sign in with the synthetic admin and mentor accounts from `.env
 - Cookies are set host-only (`url`), like the cookie the app sets, so the two never coexist with different values.
 - Progress checks are exact: the expected "1 of N" is computed from the applicable tasks visible on the journey page, not matched with a loose pattern.
 - A test that creates an active task template deactivates it in `finally` from its own admin session, so a failure cannot change the task lists of later tests.
+- Tests that need data from another role create it themselves (for example the mentor accessibility test creates and assigns its own help request).
+
+## Test data cleanup
+Every E2E run removes the synthetic records it created (`tests/e2e/global-setup.ts` → `scripts/db/cleanup-test-data.mjs --apply --since=<run start>`). Set `E2E_KEEP_DATA=1` to keep them for debugging.
+
+Safety rules of the cleanup:
+- Local `FirstSteps_Dev` only. The script refuses any other server or database, and re-checks the connected database.
+- Dry run by default; `--apply` commits. Everything runs in one transaction.
+- **Users:** removed only when every condition holds:
+  - the email starts with `e2e+`, `sweep+`, `qa+` or `title+`;
+  - the email ends with `@example.invalid` (a reserved domain that cannot belong to a real person);
+  - the role is `Student`;
+  - with `--since`, the account was created after that time.
+  Admin and Mentor accounts and the seeded accounts never match. Their journeys, journey tasks and help requests are removed with them.
+- **Templates:** removed only when the title is `E2E … <13-digit timestamp>`, the template is inactive, and no remaining journey uses it.
+- No `TRUNCATE` and no schema change.
+- `--self-test` checks the rules on decoys in a rolled-back transaction: wrong domain, missing prefix, prefix not at the start, Mentor role, and accounts older than `--since`.
 
 ## Alpha v0.0.1 results (2026-11-08)
 | Check | Result |
 |---|---|
 | Typecheck, lint, build | Pass |
-| Unit | 35/35 (rule engine, dependency graph, progress, i18n key parity and placeholders) |
-| End-to-end | 14/14, two consecutive runs |
+| Unit | 36/36 (rule engine, dependency graph, progress, i18n key parity and placeholders) |
+| End-to-end | 19/19, two consecutive runs |
 | Database verification | 10/10 PASS |
-| axe-core | No violations: public pages and student pages, English and Turkish, light and dark |
+| axe-core | No violations on public, student, admin and mentor pages (including a mentor request page), in English and Turkish, light and dark |
+| Cleanup self-test | Pass: 1 matching account removed, 4 decoys and all older accounts kept |
 | Screen sweep (all pages, en/tr, light/dark, 360 px and 1280 px) | No other-language text, raw message keys, horizontal overflow or empty titles; intentional English on admin task pages (English source title, stored category codes) |
 
 ## Document title
@@ -52,7 +71,7 @@ Latest results are recorded in [progress.md](progress.md).
 | A13 Admin editing | E2E (a new template appears in a new journey; students cannot open admin pages) |
 | A14 Dashboard | E2E smoke test; figures come from database queries and `summarizeProgress` is unit tested |
 | A15 Cycles | E2E (rejected with the cycle path) and unit tests |
-| A16 Re-planning | E2E (1 added, 1 no longer needed, completed task kept) and unit tests |
+| A16 Re-planning | E2E (1 added, 1 no longer needed, completed task kept), E2E repair of a prerequisite added after the journey (Issue 001), unit tests |
 | A17 Report | E2E (open task list from the cursor procedure) |
 | A18 Local only | Configuration: the app and scripts refuse a non-local `DB_SERVER` or a `DB_NAME` other than `FirstSteps_Dev` |
 
