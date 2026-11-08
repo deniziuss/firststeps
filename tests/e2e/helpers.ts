@@ -1,5 +1,5 @@
-import type { Page } from "@playwright/test";
-import { expect, setLocaleCookie } from "./fixtures";
+import type { Browser, Page } from "@playwright/test";
+import { BASE_URL, expect, setLocaleCookie } from "./fixtures";
 
 export const PASSWORD = `E2e-${Date.now()}-pass`;
 
@@ -102,4 +102,63 @@ export async function applicableTaskCount(page: Page, notNeededLabel: string) {
   const total = await rows.count();
   const notNeeded = await rows.filter({ hasText: notNeededLabel }).count();
   return total - notNeeded;
+}
+
+// Deactivates a test template from its own admin session, so a failure mid-test cannot leave it
+// active and change the task lists of later tests.
+export async function deactivateTemplate(browser: Browser, templateUrl: string) {
+  const admin = adminCredentials();
+  const context = await browser.newContext({ baseURL: BASE_URL });
+  const page = await context.newPage();
+  await signIn(page, admin.email, admin.password);
+  await page.goto(templateUrl);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel(/Active/).uncheck();
+  await button(page, "Save changes").click();
+  await expect(button(page, "Save changes")).toBeEnabled();
+  await page.reload();
+  await expect(page.getByLabel(/Active/)).not.toBeChecked();
+  await context.close();
+}
+
+// Creates an active task template from an admin page and returns its URL.
+export async function createTemplate(page: Page, title: string, category = "University") {
+  await page.goto("/admin/templates");
+  await ready(page);
+  await page.getByLabel("Title (English)").fill(title);
+  await page.getByLabel("Category").fill(category);
+  await button(page, "Create task").click();
+  await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+  await ready(page);
+  return page.url();
+}
+
+// A help request from a new synthetic student, assigned to the seeded mentor by the admin.
+// Runs in its own browser contexts, so the calling test's session is not touched.
+export async function createAssignedRequest(browser: Browser, subject: string) {
+  const student = await browser.newContext({ baseURL: BASE_URL });
+  const studentPage = await student.newPage();
+  await setLocaleCookie(student, "en");
+  await register(studentPage, "Rhea", uniqueEmail("req"));
+  await createJourney(studentPage, { arrival: "2027-08-01" });
+  await openTask(studentPage, "Learn the city public transport");
+  await button(studentPage, "Ask a mentor").click();
+  await studentPage.getByLabel("Short subject").fill(subject);
+  await studentPage.getByLabel("What is the problem?").fill("Synthetic request for an automated check.");
+  await button(studentPage, "Send to a mentor").click();
+  await expect(studentPage.getByText("Your request was sent")).toBeVisible();
+  await student.close();
+
+  const admin = adminCredentials();
+  const adminContext = await browser.newContext({ baseURL: BASE_URL });
+  const adminPage = await adminContext.newPage();
+  await setLocaleCookie(adminContext, "en");
+  await signIn(adminPage, admin.email, admin.password);
+  await adminPage.goto("/admin/requests?status=Open");
+  await ready(adminPage);
+  const item = adminPage.locator(`li[data-request="${subject}"]`);
+  await item.getByLabel("Mentor").selectOption({ label: "Maria Mentor (Mentor)" });
+  await item.getByRole("button", { name: "Assign" }).click();
+  await expect(item).toHaveCount(0);
+  await adminContext.close();
 }

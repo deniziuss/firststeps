@@ -1,6 +1,5 @@
-import type { Browser } from "@playwright/test";
-import { expect, test } from "./fixtures";
-import { adminCredentials, button, createJourney, formAlert, mentorCredentials, openTask, PASSWORD, register, signIn, signOut, uniqueEmail, useLocale } from "./helpers";
+import { BASE_URL, expect, test } from "./fixtures";
+import { adminCredentials, button, createJourney, deactivateTemplate, formAlert, mentorCredentials, openTask, PASSWORD, register, signIn, signOut, uniqueEmail, useLocale } from "./helpers";
 
 test("anonymous visitors are sent to sign in", async ({ page }) => {
   for (const path of ["/dashboard", "/journey", "/admin", "/mentor"]) {
@@ -84,23 +83,6 @@ test("help request is assigned by admin and answered by the mentor only", async 
   await expect(page.getByText("Student cards are sold at the main ticket office")).toBeVisible();
 });
 
-// Deactivates a test template from its own admin session, so a failure mid-test cannot leave it
-// active and change the task lists of later tests.
-async function deactivateTemplate(browser: Browser, templateUrl: string) {
-  const admin = adminCredentials();
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  await signIn(page, admin.email, admin.password);
-  await page.goto(templateUrl);
-  await page.waitForLoadState("networkidle");
-  await page.getByLabel(/Active/).uncheck();
-  await button(page, "Save changes").click();
-  await expect(button(page, "Save changes")).toBeEnabled();
-  await page.reload();
-  await expect(page.getByLabel(/Active/)).not.toBeChecked();
-  await context.close();
-}
-
 test("admin edits content: template, translation, cycle check", async ({ page, browser }) => {
   const admin = adminCredentials();
   test.skip(!admin.email, "Run npm run db:seed-users first.");
@@ -135,7 +117,7 @@ test("admin edits content: template, translation, cycle check", async ({ page, b
     // Turkish views run in a separate browser context with the same student session, so the
     // language of this test's own context never changes.
     const student = await page.context().storageState();
-    const turkish = await browser.newContext({ storageState: student });
+    const turkish = await browser.newContext({ baseURL: BASE_URL, storageState: student });
     const trPage = await turkish.newPage();
     await useLocale(trPage, "tr");
 
@@ -149,7 +131,7 @@ test("admin edits content: template, translation, cycle check", async ({ page, b
 
     // The admin adds the translation (own session); the student then sees the Turkish title without the notice.
     const titleTr = `E2E hoş geldin paketi ${title.slice(-6)}`;
-    const adminContext = await browser.newContext();
+    const adminContext = await browser.newContext({ baseURL: BASE_URL });
     const adminPage = await adminContext.newPage();
     await signIn(adminPage, admin.email, admin.password);
     await adminPage.goto(templateUrl);

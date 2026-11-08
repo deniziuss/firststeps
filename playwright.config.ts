@@ -17,6 +17,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   outputDir: "test-results",
+  globalSetup: "./tests/e2e/global-setup.ts",
   // A production build on its own port, so tests do not depend on dev-mode compilation.
   webServer: {
     command: "npm run build && npx next start -p 3100",
