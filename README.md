@@ -1,5 +1,7 @@
 # FirstSteps
 
+**English** | [Türkçe](README.tr.md)
+
 A personalized onboarding and relocation platform for international students.
 
 FirstSteps turns the arrival process of an international student into a personal, ordered plan: which tasks apply to them, what has to happen first, where the official information is, and who can help when they get stuck. The first pilot scope is Erasmus and international students arriving in Liepāja, Latvia.
@@ -24,7 +26,7 @@ Implemented and covered by tests (see [docs/testing.md](docs/testing.md)):
 - **Dashboards and reports:** student progress by stage, a printable progress report, a mentor queue, and an admin overview with anonymous aggregate charts.
 - **Admin panel:** universities, task templates, dependencies (with cycle and applicability checks), source review, help request assignment and user roles.
 - **English and Turkish:** the whole interface, validation messages and dates are available in both languages. The language switch is in the header before and after sign-in and is remembered in a cookie. Task and source texts from the database are translated; when a translation is missing, the English text is shown with a notice.
-- **UI:** a natural palette (deep forest, forest green, warm ivory, ochre gold, warm taupe) with light and dark themes, a responsive layout from 360 px, explicit empty, loading and error states, keyboard access and a skip link. Automated WCAG 2.2 AA checks (axe-core) pass on the public and student screens in both languages and themes.
+- **UI:** a natural palette (deep forest, forest green, warm ivory, ochre gold, warm taupe) with light and dark themes, a responsive layout from 360 px, explicit empty, loading and error states, keyboard access and a skip link. Automated WCAG 2.2 AA checks (axe-core) pass on the public, student, mentor and admin screens in both languages and themes.
 
 ## Tech stack
 
@@ -72,7 +74,11 @@ On Windows, `database/local/configure-sqlexpress.ps1` (run as administrator) ena
 
 ### Setup
 
-```
+The alpha version is on the `feat/alpha-0.0.1-ui-i18n` branch:
+
+```bash
+git clone -b feat/alpha-0.0.1-ui-i18n https://github.com/deniziuss/firststeps.git
+cd firststeps
 npm install
 npm run db:local:setup
 npm run db:seed-users
@@ -113,8 +119,9 @@ GitHub Actions runs install, typecheck, lint, unit tests and the production buil
 
 ```
 database/migrations/   schema migrations (0001: tables, indexes, triggers, procedures; 0002: content translations)
+database/proposals/    schema changes waiting for a decision (not applied by setup)
 database/local/        local setup: database and login, synthetic content, verification, SQL Express configuration
-scripts/db/            setup, connection check, schema snapshot, synthetic users
+scripts/db/            setup, connection check, schema snapshot, synthetic users, test data cleanup
 src/app/[locale]/      routes: (auth) sign-in/register, (app) student, mentor and admin screens
 src/i18n/              locale config, English and Turkish dictionaries, translator and formatters
 src/proxy.ts           maps clean URLs to the language from the cookie
@@ -131,7 +138,7 @@ All modules listed above are implemented and tested locally. Current state and o
 
 Known open points:
 
-- Product rule for prerequisites that are missing from or not applicable to a journey ([docs/issues/001](docs/issues/001-prerequisite-satisfaction.md)). The current behaviour keeps such tasks locked and explains why.
+- Prerequisites that do not apply to a journey still lock the dependent task. A trigger change is proposed and waits for a decision ([docs/issues/001](docs/issues/001-prerequisite-satisfaction.md)). A prerequisite that is missing from a journey because it was added later is already repaired with *Update my plan*.
 - Task and source texts are synthetic drafts; every source is still *Review pending*.
 
 Planned, not yet implemented:
