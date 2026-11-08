@@ -21,7 +21,7 @@ export function TemplateForm({ template, universities }: { template?: TemplateRo
       <Field label={t("admin.templates.fields.guidance")} name="description" state={state} hint={t("admin.templates.fields.guidanceHint")}>
         <Textarea defaultValue={template?.Description ?? ""} rows={4} maxLength={1000} />
       </Field>
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid items-start gap-5 sm:grid-cols-2">
         <Field label={t("admin.templates.fields.scope")} name="universityId" state={state}>
           <NativeSelect defaultValue={template?.UniversityID ?? "global"}>
             <option value="global">{t("admin.templates.allUniversities")}</option>

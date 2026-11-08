@@ -46,6 +46,8 @@ export default async function TemplatePage({ params }: PageProps<"/[locale]/admi
     listTemplates(),
     listSources({ taskId: template.TaskID, locale: i18n.locale }),
   ]);
+  // Admins edit the English text, but in Turkish they pick and read related tasks by their Turkish titles.
+  const shownTitle = (row: { TaskTitle: string; TitleTr: string | null }) => (i18n.locale === "tr" && row.TitleTr ? row.TitleTr : row.TaskTitle);
   const candidates = templates.filter((tpl) => tpl.TaskID !== template.TaskID && !prerequisites.some((p) => p.TaskID === tpl.TaskID));
 
   return (
@@ -75,12 +77,12 @@ export default async function TemplatePage({ params }: PageProps<"/[locale]/admi
                 {prerequisites.map((p) => (
                   <li key={p.TaskID} className="flex items-center justify-between gap-2 text-sm">
                     <Link href={`/admin/templates/${p.TaskID}`} className="min-w-0 underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
-                      {p.TaskTitle}
+                      {shownTitle(p)}
                     </Link>
                     <form action={removeDependency}>
                       <input type="hidden" name="taskId" value={template.TaskID} />
                       <input type="hidden" name="requiredTaskId" value={p.TaskID} />
-                      <Button type="submit" variant="ghost" size="icon-sm" aria-label={t("admin.templates.removePrereq", { task: p.TaskTitle })}>
+                      <Button type="submit" variant="ghost" size="icon-sm" aria-label={t("admin.templates.removePrereq", { task: shownTitle(p) })}>
                         <XIcon aria-hidden />
                       </Button>
                     </form>
@@ -88,7 +90,7 @@ export default async function TemplatePage({ params }: PageProps<"/[locale]/admi
                 ))}
               </ul>
             )}
-            <DependencyForm taskId={template.TaskID} candidates={candidates.map((c) => ({ id: c.TaskID, label: c.TaskTitle }))} />
+            <DependencyForm taskId={template.TaskID} candidates={candidates.map((c) => ({ id: c.TaskID, label: shownTitle(c) }))} />
           </Panel>
           <Panel id="sources" title={t("task.sourcesTitle")}>
             {sources.length > 0 && (

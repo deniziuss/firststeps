@@ -130,7 +130,7 @@ export function MobileNav({ role, footer }: { role: UserRole; footer?: React.Rea
           <MenuIcon aria-hidden />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-[85vw] max-w-80 gap-6 bg-sidebar p-5">
+      <SheetContent side="left" closeLabel={t("common.close")} className="w-[85vw] max-w-80 gap-6 bg-sidebar p-5">
         <SheetTitle>
           <Brand />
         </SheetTitle>
