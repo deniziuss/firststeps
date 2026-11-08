@@ -1,0 +1,135 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* FirstSteps palette: navy + teal on cool neutrals. */
+:root {
+  --background: #f6f8fb;
+  --foreground: #0f1f33;
+  --card: #ffffff;
+  --card-foreground: #0f1f33;
+  --popover: #ffffff;
+  --popover-foreground: #0f1f33;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #e8eef5;
+  --secondary-foreground: #14243a;
+  --muted: #eef2f7;
+  --muted-foreground: #5b6b7f;
+  --accent: #e3f1ef;
+  --accent-foreground: #0f4f4a;
+  --destructive: #c2410c;
+  --border: #dbe2ea;
+  --input: #cfd8e3;
+  --ring: #0f766e;
+  --navy: #14243a;
+  --success: #15803d;
+  --warning: #b45309;
+  --chart-1: #0f766e;
+  --chart-2: #2563eb;
+  --chart-3: #d97706;
+  --chart-4: #64748b;
+  --chart-5: #be123c;
+  --radius: 0.625rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f1f33;
+  --sidebar-primary: #0f766e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef2f7;
+  --sidebar-accent-foreground: #0f1f33;
+  --sidebar-border: #dbe2ea;
+  --sidebar-ring: #0f766e;
+}
+
+.dark {
+  --background: #0b1422;
+  --foreground: #e6edf5;
+  --card: #111d2e;
+  --card-foreground: #e6edf5;
+  --popover: #111d2e;
+  --popover-foreground: #e6edf5;
+  --primary: #2dd4bf;
+  --primary-foreground: #042f2e;
+  --secondary: #1b2a3f;
+  --secondary-foreground: #e6edf5;
+  --muted: #17263a;
+  --muted-foreground: #94a3b8;
+  --accent: #123a3a;
+  --accent-foreground: #ccfbf1;
+  --destructive: #fb923c;
+  --border: rgb(255 255 255 / 10%);
+  --input: rgb(255 255 255 / 15%);
+  --ring: #2dd4bf;
+  --navy: #0b1422;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --chart-1: #2dd4bf;
+  --chart-2: #60a5fa;
+  --chart-3: #fbbf24;
+  --chart-4: #94a3b8;
+  --chart-5: #fb7185;
+  --sidebar: #0e1828;
+  --sidebar-foreground: #e6edf5;
+  --sidebar-primary: #2dd4bf;
+  --sidebar-primary-foreground: #042f2e;
+  --sidebar-accent: #17263a;
+  --sidebar-accent-foreground: #e6edf5;
+  --sidebar-border: rgb(255 255 255 / 10%);
+  --sidebar-ring: #2dd4bf;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-navy: var(--navy);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
