@@ -83,21 +83,25 @@ export function setJourneyStatus(userId: number, journeyId: number, status: Jour
 
 type TemplateRow = { TaskID: number; UniversityID: number | null; ApplicableProgram: TemplateRule["applicableProgram"]; AccommodationCondition: TemplateRule["accommodationCondition"]; IsActive: boolean };
 
-// Changes the accommodation status and re-plans the journey in one transaction.
-// Completed tasks and existing rows are always kept (see domain/reconcile.ts).
-export async function changeAccommodation(userId: number, journeyId: number, accommodationStatus: AccommodationStatus) {
+// Re-plans the journey in one transaction, optionally with a new accommodation status. Without one it
+// only brings the plan up to date with the current templates (for example a prerequisite added after
+// the journey was created, Issue 001). Completed tasks and existing rows are always kept (see domain/reconcile.ts).
+export async function replanJourney(userId: number, journeyId: number, newAccommodation?: AccommodationStatus) {
   return withTransaction(async (tx) => {
-    const journey = await queryOne<{ UniversityID: number; ProgramType: ProgramType }>(
-      "SELECT UniversityID, ProgramType FROM dbo.Journeys WITH (UPDLOCK) WHERE JourneyID = @journeyId AND UserID = @userId",
+    const journey = await queryOne<{ UniversityID: number; ProgramType: ProgramType; AccommodationStatus: AccommodationStatus }>(
+      "SELECT UniversityID, ProgramType, AccommodationStatus FROM dbo.Journeys WITH (UPDLOCK) WHERE JourneyID = @journeyId AND UserID = @userId",
       { journeyId: [sql.Int, journeyId], userId: [sql.Int, userId] },
       tx,
     );
-    if (!journey) throw new AppError("Journey not found.", "notFound");
+    if (!journey) throw new AppError("errors.journeyNotFound", undefined, "notFound");
 
-    await execute("UPDATE dbo.Journeys SET AccommodationStatus = @status WHERE JourneyID = @journeyId", {
-      status: [sql.NVarChar(20), accommodationStatus],
-      journeyId: [sql.Int, journeyId],
-    }, tx);
+    const accommodationStatus = newAccommodation ?? journey.AccommodationStatus;
+    if (accommodationStatus !== journey.AccommodationStatus) {
+      await execute("UPDATE dbo.Journeys SET AccommodationStatus = @status WHERE JourneyID = @journeyId", {
+        status: [sql.NVarChar(20), accommodationStatus],
+        journeyId: [sql.Int, journeyId],
+      }, tx);
+    }
 
     const templates = (await query<TemplateRow>("SELECT TaskID, UniversityID, ApplicableProgram, AccommodationCondition, IsActive FROM dbo.Task_Templates", {}, tx)).map(
       (t): TemplateRule => ({ taskId: t.TaskID, universityId: t.UniversityID, applicableProgram: t.ApplicableProgram, accommodationCondition: t.AccommodationCondition, isActive: t.IsActive }),

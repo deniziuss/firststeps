@@ -1,22 +1,26 @@
-// Errors that are safe to show to the user. Anything else is logged and replaced by a generic message.
+import type { MessageKey, Translate, Vars } from "@/i18n/translator";
+
+// Errors that are safe to show to the user. They carry a message key and are translated at the
+// server action boundary. Anything else is logged and replaced by a generic message.
 export class AppError extends Error {
   constructor(
-    message: string,
+    readonly key: MessageKey,
+    readonly vars?: Vars,
     readonly code: "validation" | "conflict" | "forbidden" | "notFound" | "rule" = "rule",
   ) {
-    super(message);
+    super(key);
     this.name = "AppError";
   }
 }
 
-const DB_MESSAGES: Record<number, AppError> = {
-  51001: new AppError("Complete the prerequisite tasks first."),
-  51002: new AppError("Only active mentors or admins can be assigned to a help request."),
-  51010: new AppError("Password could not be stored.", "validation"),
-  51011: new AppError("Task not found.", "notFound"),
-  51012: new AppError("Only an open, unassigned help request can be deleted."),
-  51013: new AppError("Only active student accounts can create a journey."),
-  51014: new AppError("University not found.", "notFound"),
+const DB_ERRORS: Record<number, () => AppError> = {
+  51001: () => new AppError("errors.prerequisitesPending"),
+  51002: () => new AppError("errors.mentorRole"),
+  51010: () => new AppError("errors.passwordNotStored", undefined, "validation"),
+  51011: () => new AppError("errors.taskNotFound", undefined, "notFound"),
+  51012: () => new AppError("errors.onlyOpenDeletable"),
+  51013: () => new AppError("errors.studentOnly"),
+  51014: () => new AppError("errors.universityNotFound", undefined, "notFound"),
 };
 
 function dbErrorNumber(error: unknown): number | undefined {
@@ -30,23 +34,24 @@ export function isUniqueViolation(error: unknown): boolean {
   return n === 2627 || n === 2601;
 }
 
-export function toAppError(error: unknown, uniqueMessage = "This record already exists."): AppError {
+export function toAppError(error: unknown, uniqueKey: MessageKey = "errors.duplicate"): AppError {
   if (error instanceof AppError) return error;
   const n = dbErrorNumber(error);
-  if (n !== undefined && DB_MESSAGES[n]) return DB_MESSAGES[n];
-  if (isUniqueViolation(error)) return new AppError(uniqueMessage, "conflict");
+  if (n !== undefined && DB_ERRORS[n]) return DB_ERRORS[n]();
+  if (isUniqueViolation(error)) return new AppError(uniqueKey, undefined, "conflict");
   console.error(error);
-  return new AppError("Something went wrong. Please try again.");
+  return new AppError("errors.generic");
 }
 
 export type ActionResult<T = unknown> = { ok: true; data?: T; message?: string } | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
 
-export async function runAction<T>(work: () => Promise<T>, uniqueMessage?: string): Promise<ActionResult<T>> {
+export async function runAction<T>(t: Translate, work: () => Promise<T>, uniqueKey?: MessageKey): Promise<ActionResult<T>> {
   try {
     return { ok: true, data: await work() };
   } catch (error) {
     // Next.js uses thrown errors for redirect() and notFound(); let them through.
     if (error && typeof error === "object" && "digest" in error) throw error;
-    return { ok: false, error: toAppError(error, uniqueMessage).message };
+    const appError = toAppError(error, uniqueKey);
+    return { ok: false, error: t(appError.key, appError.vars) };
   }
 }

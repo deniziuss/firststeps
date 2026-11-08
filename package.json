@@ -13,6 +13,7 @@
     "db:local:setup": "node scripts/db/local-setup.mjs",
     "test": "vitest run",
     "db:seed-users": "node --env-file=.env.local scripts/db/seed-dev-users.mjs",
+    "db:cleanup-test-data": "node --env-file=.env.local scripts/db/cleanup-test-data.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -33,6 +34,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.65.0",
     "@tailwindcss/turbopack": "4.3.5",
     "@types/mssql": "12.3.0",

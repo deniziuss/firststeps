@@ -35,7 +35,14 @@ describe("applicabilityGaps", () => {
 
   it("flags a narrower program or accommodation condition", () => {
     const gaps = applicabilityGaps(any, { ...any, applicableProgram: "Erasmus", accommodationCondition: "NotArranged" });
-    expect(gaps).toHaveLength(2);
+    expect(gaps).toEqual([
+      { kind: "programme", value: "Erasmus" },
+      { kind: "accommodation", value: "NotArranged" },
+    ]);
+  });
+
+  it("flags a prerequisite from another university", () => {
+    expect(applicabilityGaps(any, { ...any, universityId: 2 })).toEqual([{ kind: "scope" }]);
   });
 
   it("accepts the same narrow condition on both tasks", () => {

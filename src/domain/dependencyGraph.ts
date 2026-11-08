@@ -30,18 +30,23 @@ type Applicability = {
   accommodationCondition: AccommodationCondition;
 };
 
+export type ApplicabilityGap =
+  | { kind: "scope" }
+  | { kind: "programme"; value: ApplicableProgram }
+  | { kind: "accommodation"; value: AccommodationCondition };
+
 // Lists why some journeys could contain the dependent task without its prerequisite.
 // Such a dependency would leave the dependent permanently locked there (Issue 001).
-export function applicabilityGaps(dependent: Applicability, prerequisite: Applicability): string[] {
-  const gaps: string[] = [];
+export function applicabilityGaps(dependent: Applicability, prerequisite: Applicability): ApplicabilityGap[] {
+  const gaps: ApplicabilityGap[] = [];
   if (prerequisite.universityId !== null && prerequisite.universityId !== dependent.universityId) {
-    gaps.push("The prerequisite belongs to a different university scope.");
+    gaps.push({ kind: "scope" });
   }
   if (prerequisite.applicableProgram !== "All" && prerequisite.applicableProgram !== dependent.applicableProgram) {
-    gaps.push(`The prerequisite applies only to ${prerequisite.applicableProgram} students.`);
+    gaps.push({ kind: "programme", value: prerequisite.applicableProgram });
   }
   if (prerequisite.accommodationCondition !== "Any" && prerequisite.accommodationCondition !== dependent.accommodationCondition) {
-    gaps.push(`The prerequisite applies only when accommodation is ${prerequisite.accommodationCondition}.`);
+    gaps.push({ kind: "accommodation", value: prerequisite.accommodationCondition });
   }
   return gaps;
 }

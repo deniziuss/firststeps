@@ -9,40 +9,47 @@ import {
   STUDENT_TASK_STATUSES,
   USER_ROLES,
 } from "@/domain/statuses";
+import type { Translate } from "@/i18n/translator";
 
-const name = z.string().trim().min(1, "Required").max(100);
-const email = z.string().trim().toLowerCase().max(255).pipe(z.email("Enter a valid email address"));
-const password = z.string().min(10, "Use at least 10 characters").max(128, "Use at most 128 characters");
+// Error messages are translation keys; fieldErrors() turns them into text in the user's language.
+const required = "validation.required";
+const tooLong = "validation.tooLong";
+
+const text = (min: number, max: number, minMessage = required) => z.string().trim().min(min, minMessage).max(max, tooLong);
+const name = text(1, 100);
+const email = z.string().trim().toLowerCase().max(255, tooLong).pipe(z.email("validation.email"));
+const password = z.string().min(10, "validation.passwordLength").max(128, "validation.passwordMax");
 const id = z.coerce.number().int().positive();
 const optionalText = (max: number) =>
   z
     .string()
     .trim()
-    .max(max)
+    .max(max, tooLong)
     .transform((value) => (value === "" ? null : value));
+const optionalUrl = (max: number) => optionalText(max).pipe(z.url("validation.url").nullable());
 
 export const registerSchema = z
   .object({ firstName: name, lastName: name, email, password, confirmPassword: z.string() })
-  .refine((v) => v.password === v.confirmPassword, { path: ["confirmPassword"], message: "Passwords do not match" });
+  .refine((v) => v.password === v.confirmPassword, { path: ["confirmPassword"], message: "validation.passwordsMatch" });
 
-export const signInSchema = z.object({ email, password: z.string().min(1, "Required").max(128) });
+export const signInSchema = z.object({ email, password: z.string().min(1, required).max(128, tooLong) });
 
 export const profileSchema = z.object({ firstName: name, lastName: name });
 
 export const passwordChangeSchema = z
-  .object({ currentPassword: z.string().min(1, "Required").max(128), newPassword: password, confirmPassword: z.string() })
-  .refine((v) => v.newPassword === v.confirmPassword, { path: ["confirmPassword"], message: "Passwords do not match" });
+  .object({ currentPassword: z.string().min(1, required).max(128, tooLong), newPassword: password, confirmPassword: z.string() })
+  .refine((v) => v.newPassword === v.confirmPassword, { path: ["confirmPassword"], message: "validation.passwordsMatch" });
 
 export const journeySchema = z.object({
   universityId: id,
-  arrivalDate: z.iso.date("Choose your arrival date"),
-  programType: z.enum(PROGRAM_TYPES),
-  accommodationStatus: z.enum(ACCOMMODATION_STATUSES),
+  arrivalDate: z.iso.date("validation.date"),
+  programType: z.enum(PROGRAM_TYPES, "validation.required"),
+  accommodationStatus: z.enum(ACCOMMODATION_STATUSES, "validation.required"),
   homeCountryCode: z
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^([A-Z]{2})?$/, "Use a two-letter country code")
+    .regex(/^([A-Z]{2})?$/, "validation.countryCode")
     .transform((value) => (value === "" ? null : value)),
 });
 
@@ -52,23 +59,20 @@ export const taskStatusSchema = z.object({ journeyTaskId: id, status: z.enum(STU
 
 export const helpRequestSchema = z.object({
   journeyTaskId: id,
-  subject: z.string().trim().min(3, "Add a short subject").max(200),
-  problemDescription: z.string().trim().min(10, "Describe the problem in a few words").max(2000),
+  subject: text(3, 200, "validation.subject"),
+  problemDescription: text(10, 2000, "validation.problem"),
 });
 
-export const resolveRequestSchema = z.object({
-  requestId: id,
-  resolutionText: z.string().trim().min(5, "Write a short answer").max(2000),
-});
+export const resolveRequestSchema = z.object({ requestId: id, resolutionText: text(5, 2000, "validation.answer") });
 
 export const assignRequestSchema = z.object({ requestId: id, mentorUserId: id });
 
 export const universitySchema = z.object({
-  universityName: z.string().trim().min(2).max(200),
-  city: z.string().trim().min(1).max(100),
-  country: z.string().trim().min(1).max(100),
-  countryCode: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Use a two-letter country code"),
-  website: optionalText(500).pipe(z.url("Enter a full URL starting with https://").nullable()),
+  universityName: text(2, 200),
+  city: text(1, 100),
+  country: text(1, 100),
+  countryCode: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "validation.countryCode"),
+  website: optionalUrl(500),
 });
 
 export const templateSchema = z.object({
@@ -76,22 +80,29 @@ export const templateSchema = z.object({
     .string()
     .transform((value) => (value === "" || value === "global" ? null : Number(value)))
     .pipe(z.number().int().positive().nullable()),
-  taskTitle: z.string().trim().min(3).max(200),
+  taskTitle: text(3, 200),
   description: optionalText(1000),
-  category: z.string().trim().min(2).max(60),
+  category: text(2, 60),
   journeyStage: z.enum(JOURNEY_STAGES),
   applicableProgram: z.enum(APPLICABLE_PROGRAMS),
   accommodationCondition: z.enum(ACCOMMODATION_CONDITIONS),
-  priority: z.coerce.number().int().min(1).max(5),
+  priority: z.coerce.number().int().min(1, "validation.invalid").max(5, "validation.invalid"),
   isActive: z.preprocess((value) => value === "on" || value === "true", z.boolean()),
+});
+
+export const templateTranslationSchema = z.object({
+  taskId: id,
+  taskTitle: text(3, 200),
+  description: optionalText(1000),
 });
 
 export const dependencySchema = z.object({ taskId: id, requiredTaskId: id });
 
 export const sourceSchema = z.object({
   taskId: id,
-  sourceTitle: z.string().trim().min(2).max(200),
-  sourceUrl: optionalText(1000).pipe(z.url("Enter a full URL starting with https://").nullable()),
+  sourceTitle: text(2, 200),
+  sourceTitleTr: optionalText(200),
+  sourceUrl: optionalUrl(1000),
   sourceStatus: z.enum(SOURCE_STATUSES),
 });
 
@@ -101,6 +112,12 @@ export const userAdminSchema = z.object({
   isActive: z.preprocess((value) => value === "on" || value === "true", z.boolean()),
 });
 
-export function fieldErrors(error: z.ZodError): Record<string, string[]> {
-  return z.flattenError(error).fieldErrors as Record<string, string[]>;
+export function fieldErrors(error: z.ZodError, t: Translate, has: (key: string) => boolean): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const issue of error.issues) {
+    const field = String(issue.path[0] ?? "form");
+    const message = has(issue.message) ? t(issue.message as Parameters<Translate>[0]) : t("validation.invalid");
+    result[field] = [...(result[field] ?? []), message];
+  }
+  return result;
 }

@@ -28,6 +28,12 @@ describe("unmetPrerequisites", () => {
     expect(unmetPrerequisites(2, tasks, deps)).toEqual([{ requiredTaskId: 1, reason: "notApplicable" }]);
   });
 
+  it("separates a prerequisite that does not apply from a data gap", () => {
+    const tasks = [{ taskId: 2, status: "Pending" as const }];
+    expect(unmetPrerequisites(2, tasks, deps, () => false)).toEqual([{ requiredTaskId: 1, reason: "notApplicable" }]);
+    expect(unmetPrerequisites(2, tasks, deps, () => true)).toEqual([{ requiredTaskId: 1, reason: "missing" }]);
+  });
+
   it("does not count a prerequisite in progress", () => {
     const tasks = [{ taskId: 1, status: "InProgress" as const }, { taskId: 2, status: "Pending" as const }];
     expect(unmetPrerequisites(2, tasks, deps)[0].reason).toBe("open");

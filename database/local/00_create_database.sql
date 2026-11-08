@@ -8,6 +8,13 @@ IF DB_ID(N'FirstSteps_Dev') IS NULL
     CREATE DATABASE [FirstSteps_Dev];
 GO
 
+-- SQL Server Express creates databases with AUTO_CLOSE ON. The database then closes whenever the
+-- app's connection pool goes idle, and the next burst of queries starts cold with very little query
+-- memory, which stalled pages for 15+ seconds (RESOURCE_SEMAPHORE waits). Keep it open.
+IF DATABASEPROPERTYEX(N'FirstSteps_Dev', 'IsAutoClose') = 1
+    ALTER DATABASE [FirstSteps_Dev] SET AUTO_CLOSE OFF;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'firststeps_app')
     CREATE LOGIN [firststeps_app] WITH PASSWORD = N'$(APP_PASSWORD)', CHECK_POLICY = ON, DEFAULT_DATABASE = [FirstSteps_Dev];
 ELSE
