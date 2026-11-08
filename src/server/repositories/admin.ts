@@ -1,7 +1,7 @@
 import "server-only";
 import type { Dependency } from "@/domain/prerequisites";
 import type { AccommodationCondition, ApplicableProgram, JourneyStage, SourceStatus } from "@/domain/statuses";
-import { execute, query, queryOne, sql, type Params } from "../db";
+import { execute, query, queryOne, sql, withTransaction, type Params } from "../db";
 import { AppError } from "../errors";
 
 export type TemplateRow = {
@@ -19,6 +19,8 @@ export type TemplateRow = {
   SourceCount: number;
   DependencyCount: number;
   UsageCount: number;
+  TitleTr: string | null;
+  DescriptionTr: string | null;
 };
 
 export type TemplateInput = {
@@ -38,9 +40,23 @@ const TEMPLATE_SELECT = `
          t.ApplicableProgram, t.AccommodationCondition, t.Priority, t.IsActive,
          (SELECT COUNT(*) FROM dbo.Information_Sources s WHERE s.TaskID = t.TaskID) AS SourceCount,
          (SELECT COUNT(*) FROM dbo.Task_Dependencies d WHERE d.TaskID = t.TaskID) AS DependencyCount,
-         (SELECT COUNT(*) FROM dbo.Journey_Tasks jt WHERE jt.TaskID = t.TaskID) AS UsageCount
+         (SELECT COUNT(*) FROM dbo.Journey_Tasks jt WHERE jt.TaskID = t.TaskID) AS UsageCount,
+         tt.TaskTitle AS TitleTr, tt.Description AS DescriptionTr
     FROM dbo.Task_Templates t
-    LEFT JOIN dbo.Universities u ON u.UniversityID = t.UniversityID`;
+    LEFT JOIN dbo.Universities u ON u.UniversityID = t.UniversityID
+    LEFT JOIN dbo.Task_Template_Translations tt ON tt.TaskID = t.TaskID AND tt.LanguageCode = 'tr'`;
+
+// Turkish content for a template; English stays in Task_Templates.
+export async function saveTemplateTranslation(taskId: number, title: string, description: string | null) {
+  await execute(
+    `MERGE dbo.Task_Template_Translations AS target
+     USING (SELECT @taskId AS TaskID, 'tr' AS LanguageCode) AS source
+        ON target.TaskID = source.TaskID AND target.LanguageCode = source.LanguageCode
+      WHEN MATCHED THEN UPDATE SET TaskTitle = @title, Description = @description, UpdatedAt = SYSUTCDATETIME()
+      WHEN NOT MATCHED THEN INSERT (TaskID, LanguageCode, TaskTitle, Description) VALUES (@taskId, 'tr', @title, @description);`,
+    { taskId: [sql.Int, taskId], title: [sql.NVarChar(200), title], description: [sql.NVarChar(1000), description] },
+  );
+}
 
 export function listTemplates() {
   return query<TemplateRow>(
@@ -85,7 +101,7 @@ export async function updateTemplate(taskId: number, input: TemplateInput) {
       WHERE TaskID = @taskId`,
     { ...templateParams(input), taskId: [sql.Int, taskId] },
   );
-  if (affected === 0) throw new AppError("Template not found.", "notFound");
+  if (affected === 0) throw new AppError("errors.templateNotFound", undefined, "notFound");
 }
 
 export async function listAllDependencies() {
@@ -134,17 +150,28 @@ export function listSources(filter: { taskId?: number; status?: SourceStatus }) 
   );
 }
 
-export function createSource(input: { taskId: number; sourceTitle: string; sourceUrl: string | null; sourceStatus: SourceStatus }) {
-  return execute(
-    `INSERT INTO dbo.Information_Sources (TaskID, SourceTitle, SourceURL, SourceStatus, LastVerifiedAt)
-     VALUES (@taskId, @title, @url, @status, CASE WHEN @status = N'Verified' THEN SYSUTCDATETIME() END)`,
-    {
-      taskId: [sql.Int, input.taskId],
-      title: [sql.NVarChar(200), input.sourceTitle],
-      url: [sql.NVarChar(1000), input.sourceUrl],
-      status: [sql.NVarChar(20), input.sourceStatus],
-    },
-  );
+export function createSource(input: { taskId: number; sourceTitle: string; sourceTitleTr: string | null; sourceUrl: string | null; sourceStatus: SourceStatus }) {
+  return withTransaction(async (tx) => {
+    const row = await queryOne<{ SourceID: number }>(
+      `INSERT INTO dbo.Information_Sources (TaskID, SourceTitle, SourceURL, SourceStatus, LastVerifiedAt)
+       VALUES (@taskId, @title, @url, @status, CASE WHEN @status = N'Verified' THEN SYSUTCDATETIME() END);
+       SELECT CONVERT(INT, SCOPE_IDENTITY()) AS SourceID;`,
+      {
+        taskId: [sql.Int, input.taskId],
+        title: [sql.NVarChar(200), input.sourceTitle],
+        url: [sql.NVarChar(1000), input.sourceUrl],
+        status: [sql.NVarChar(20), input.sourceStatus],
+      },
+      tx,
+    );
+    if (input.sourceTitleTr) {
+      await execute(
+        "INSERT INTO dbo.Information_Source_Translations (SourceID, LanguageCode, SourceTitle) VALUES (@sourceId, 'tr', @title)",
+        { sourceId: [sql.Int, row!.SourceID], title: [sql.NVarChar(200), input.sourceTitleTr] },
+        tx,
+      );
+    }
+  });
 }
 
 // Marking a source Verified records the review time; other statuses keep the last verification date.
@@ -155,7 +182,7 @@ export async function setSourceStatus(sourceId: number, status: SourceStatus) {
       WHERE SourceID = @sourceId`,
     { sourceId: [sql.Int, sourceId], status: [sql.NVarChar(20), status] },
   );
-  if (affected === 0) throw new AppError("Source not found.", "notFound");
+  if (affected === 0) throw new AppError("errors.sourceNotFound", undefined, "notFound");
 }
 
 export function deleteSource(sourceId: number) {
@@ -187,7 +214,7 @@ export async function updateUniversity(universityId: number, input: { university
       website: [sql.NVarChar(500), input.website],
     },
   );
-  if (affected === 0) throw new AppError("University not found.", "notFound");
+  if (affected === 0) throw new AppError("errors.universityNotFound", undefined, "notFound");
 }
 
 export function universityUsage() {

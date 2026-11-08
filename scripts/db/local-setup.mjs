@@ -1,15 +1,16 @@
 // Sets up the local FirstSteps_Dev database on SQLEXPRESS (127.0.0.1:1433).
 // - creates .env.local with generated secrets if it does not exist (values are never printed)
 // - creates the database and the least-privilege app login (Windows authentication via sqlcmd)
-// - applies database/migrations/0001_initial_schema.sql only when the database has no tables
+// - applies every database/migrations/*.sql file in order (each one is idempotent)
 // - applies synthetic content and runs the verification script
 // Never drops or truncates anything.
 // Usage: npm run db:local:setup
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const ENV_FILE = ".env.local";
+const MIGRATIONS = "database/migrations";
 const SERVER = "tcp:127.0.0.1,1433";
 const SQLCMD_CANDIDATES = ["sqlcmd", "C:\\Program Files\\SqlCmd\\sqlcmd.exe"];
 
@@ -69,18 +70,14 @@ try {
   sqlcmd(bin, ["-i", "database/local/00_create_database.sql", "-v", `APP_PASSWORD=${env.DB_PASSWORD}`]);
   console.log("Database and app login ready.");
 
-  const tableCount = Number(
-    sqlcmd(bin, ["-d", "FirstSteps_Dev", "-h", "-1", "-Q", "SET NOCOUNT ON; SELECT COUNT(*) FROM sys.tables WHERE name <> N'sysdiagrams'"]).trim(),
-  );
-  if (tableCount === 0) {
-    sqlcmd(bin, ["-d", "FirstSteps_Dev", "-i", "database/migrations/0001_initial_schema.sql"]);
-    console.log("Schema applied from database/migrations/0001_initial_schema.sql.");
-  } else {
-    console.log(`Schema already present (${tableCount} tables); not re-applied.`);
+  for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()) {
+    sqlcmd(bin, ["-d", "FirstSteps_Dev", "-i", `${MIGRATIONS}/${file}`]);
+    console.log(`Migration applied: ${file}`);
   }
 
-  console.log(sqlcmd(bin, ["-i", "database/local/02_seed_content.sql", "-W"]));
-  console.log(sqlcmd(bin, ["-i", "database/local/03_verify.sql", "-W"]));
+  for (const file of ["02_seed_content.sql", "03_seed_translations.sql", "04_verify.sql"]) {
+    console.log(sqlcmd(bin, ["-i", `database/local/${file}`, "-W"]));
+  }
 } catch (error) {
   console.error(`FAILED: ${error.message}`);
   if (error.stdout) console.error(error.stdout);

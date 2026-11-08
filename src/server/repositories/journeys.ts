@@ -92,7 +92,7 @@ export async function changeAccommodation(userId: number, journeyId: number, acc
       { journeyId: [sql.Int, journeyId], userId: [sql.Int, userId] },
       tx,
     );
-    if (!journey) throw new AppError("Journey not found.", "notFound");
+    if (!journey) throw new AppError("errors.journeyNotFound", undefined, "notFound");
 
     await execute("UPDATE dbo.Journeys SET AccommodationStatus = @status WHERE JourneyID = @journeyId", {
       status: [sql.NVarChar(20), accommodationStatus],

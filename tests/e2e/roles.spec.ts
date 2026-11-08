@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { adminCredentials, createJourney, formAlert, formStatus, mentorCredentials, openTask, PASSWORD, register, signIn, signOut, uniqueEmail } from "./helpers";
+import { adminCredentials, button, createJourney, formAlert, mentorCredentials, openTask, PASSWORD, register, signIn, signOut, uniqueEmail, useLocale } from "./helpers";
 
 test("anonymous visitors are sent to sign in", async ({ page }) => {
   for (const path of ["/dashboard", "/journey", "/admin", "/mentor"]) {
@@ -9,7 +9,6 @@ test("anonymous visitors are sent to sign in", async ({ page }) => {
 });
 
 test("students cannot read another student's data or admin pages", async ({ page }) => {
-  // Student A creates a journey and a task URL.
   await register(page, "Alice", uniqueEmail("a"));
   const journeyId = await createJourney(page, { arrival: "2027-04-01" });
   const taskId = await openTask(page, "Arrange health insurance");
@@ -42,10 +41,11 @@ test("help request is assigned by admin and answered by the mentor only", async 
   await register(page, "Carl", studentEmail);
   await createJourney(page, { arrival: "2027-05-01" });
   await openTask(page, "Learn the city public transport");
-  await page.getByLabel("Subject").fill(subject);
+  await button(page, "Ask a mentor").click();
+  await page.getByLabel("Short subject").fill(subject);
   await page.getByLabel("What is the problem?").fill("Where can I buy a monthly student bus card?");
-  await page.getByRole("button", { name: "Ask a mentor" }).click();
-  await expect(formStatus(page)).toContainText("Your request was sent");
+  await button(page, "Send to a mentor").click();
+  await expect(page.getByText("Your request was sent")).toBeVisible();
   const taskUrl = page.url();
   await signOut(page);
 
@@ -58,20 +58,22 @@ test("help request is assigned by admin and answered by the mentor only", async 
   // Admin assigns the request to the mentor (trigger 51002 accepts Mentor accounts).
   await signIn(page, admin.email, admin.password);
   await page.goto("/admin/requests?status=Open");
-  const card = page.locator('[data-slot="card"]', { hasText: subject });
-  await card.getByLabel("Mentor").selectOption({ label: "Maria Mentor (Mentor)" });
-  await card.getByRole("button", { name: "Assign" }).click();
-  await expect(card).toHaveCount(0); // no longer in the Open list
+  await page.waitForLoadState("networkidle");
+  const item = page.locator(`li[data-request="${subject}"]`);
+  await item.getByLabel("Mentor").selectOption({ label: "Maria Mentor (Mentor)" });
+  await item.getByRole("button", { name: "Assign" }).click();
+  await expect(item).toHaveCount(0); // no longer in the Open list
   await page.goto("/admin/requests?status=Assigned");
-  await expect(page.locator('[data-slot="card"]', { hasText: subject })).toContainText("mentor Maria");
+  await expect(page.locator(`li[data-request="${subject}"]`)).toContainText("mentor Maria");
   await signOut(page);
 
   // Mentor answers it.
   await signIn(page, mentor.email, mentor.password);
   await page.getByRole("link", { name: new RegExp(subject) }).click();
-  await page.getByLabel("Answer").fill("Student cards are sold at the main ticket office. Check the city transport website first.");
-  await page.getByRole("button", { name: "Send answer and resolve" }).click();
-  await expect(page.getByText(/^Answer sent/)).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Answer", { exact: true }).fill("Student cards are sold at the main ticket office. Check the city transport website first.");
+  await button(page, "Send answer").click();
+  await expect(page.getByText(/^Answer sent /)).toBeVisible();
   await signOut(page);
 
   // The student sees the answer on the task page.
@@ -81,7 +83,7 @@ test("help request is assigned by admin and answered by the mentor only", async 
   await expect(page.getByText("Student cards are sold at the main ticket office")).toBeVisible();
 });
 
-test("admin edits content: template, cycle check and source review", async ({ page }) => {
+test("admin edits content: template, translation, cycle check", async ({ page }) => {
   const admin = adminCredentials();
   test.skip(!admin.email, "Run npm run db:seed-users first.");
   await signIn(page, admin.email, admin.password);
@@ -90,31 +92,41 @@ test("admin edits content: template, cycle check and source review", async ({ pa
   // A15: a cycle is rejected with an explanation.
   await page.goto("/admin/templates");
   await page.getByRole("link", { name: "Register at the international office" }).click();
+  await page.waitForLoadState("networkidle");
   await page.getByLabel("Prerequisite task").selectOption({ label: "Confirm your course enrolment" });
-  await page.getByRole("button", { name: "Add prerequisite" }).click();
+  await button(page, "Add prerequisite").click();
   await expect(formAlert(page)).toContainText("This would create a cycle");
 
-  // A13: a new template reaches new journeys.
+  // A13: a new template reaches new journeys, and its Turkish translation is used in Turkish.
   const title = `E2E welcome pack ${Date.now()}`;
   await page.goto("/admin/templates");
-  await page.getByLabel("Title").fill(title);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Title (English)").fill(title);
   await page.getByLabel("Category").fill("University");
-  await page.getByRole("button", { name: "Create template" }).click();
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await button(page, "Create task").click();
+  await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Title (Turkish)").fill(`E2E hoş geldin paketi ${title.slice(-6)}`);
+  await button(page, "Save translation").click();
+  await expect(page.getByText("Translation saved.")).toBeVisible();
   const templateUrl = page.url();
   await signOut(page);
 
   await register(page, "Nora", uniqueEmail("tpl"));
   await createJourney(page, { arrival: "2027-06-01" });
   await expect(page.getByRole("link", { name: new RegExp(title) })).toBeVisible();
+  await page.goto(`/tr${new URL(page.url()).pathname}`);
+  await expect(page.getByRole("link", { name: new RegExp(`E2E hoş geldin paketi ${title.slice(-6)}`) })).toBeVisible();
+  await useLocale(page, "en");
   await signOut(page);
 
   // Deactivate the test template so it does not affect later journeys.
   await signIn(page, admin.email, admin.password);
   await page.goto(templateUrl);
+  await page.waitForLoadState("networkidle");
   await page.getByLabel(/Active/).uncheck();
-  await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByRole("button", { name: "Save changes" })).toBeEnabled();
+  await button(page, "Save changes").click();
+  await expect(button(page, "Save changes")).toBeEnabled();
   await page.reload();
   await expect(page.getByLabel(/Active/)).not.toBeChecked();
 });

@@ -14,8 +14,8 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
-export function BarChartCard({ data, label, unit = "" }: { data: ChartDatum[]; label: string; unit?: string }) {
-  if (data.length === 0) return <p className="py-10 text-center text-sm text-muted-foreground">No data yet.</p>;
+export function BarChartCard({ data, label, emptyLabel, unit = "" }: { data: ChartDatum[]; label: string; emptyLabel: string; unit?: string }) {
+  if (data.length === 0) return <p className="py-10 text-center text-sm text-muted-foreground">{emptyLabel}</p>;
   return (
     <div className="h-64" role="img" aria-label={`${label}: ${data.map((d) => `${d.name} ${d.value}${unit}`).join(", ")}`}>
       <ResponsiveContainer width="100%" height="100%">
@@ -39,9 +39,9 @@ export function BarChartCard({ data, label, unit = "" }: { data: ChartDatum[]; l
   );
 }
 
-export function DonutChartCard({ data, label }: { data: ChartDatum[]; label: string }) {
+export function DonutChartCard({ data, label, emptyLabel }: { data: ChartDatum[]; label: string; emptyLabel: string }) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
-  if (total === 0) return <p className="py-10 text-center text-sm text-muted-foreground">No data yet.</p>;
+  if (total === 0) return <p className="py-10 text-center text-sm text-muted-foreground">{emptyLabel}</p>;
   return (
     <div className="grid items-center gap-4 sm:grid-cols-[160px_1fr]" role="img" aria-label={`${label}: ${data.map((d) => `${d.name} ${d.value}`).join(", ")}`}>
       <div className="h-40">
