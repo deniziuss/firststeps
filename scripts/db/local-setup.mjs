@@ -75,7 +75,7 @@ try {
     console.log(`Migration applied: ${file}`);
   }
 
-  for (const file of ["02_seed_content.sql", "03_seed_translations.sql", "04_verify.sql"]) {
+  for (const file of ["02_seed_content.sql", "03_seed_translations.sql", "05_server_settings.sql", "04_verify.sql"]) {
     console.log(sqlcmd(bin, ["-i", `database/local/${file}`, "-W"]));
   }
 } catch (error) {
