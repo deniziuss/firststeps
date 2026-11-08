@@ -1,4 +1,6 @@
 import "server-only";
+import { cache } from "react";
+import { isTemplateApplicable, type JourneyProfile, type TemplateRule } from "@/domain/journeyEngine";
 import { checkTransition, unmetPrerequisites, type Dependency, type UnmetPrerequisite } from "@/domain/prerequisites";
 import type { JourneyStage, SourceStatus, StudentTaskStatus, TaskStatus } from "@/domain/statuses";
 import type { Locale } from "@/i18n/config";
@@ -48,30 +50,58 @@ async function journeyTaskRows(journeyId: number, locale: Locale, executor?: Exe
   );
 }
 
-// Dependencies of every task in the journey, including prerequisites that are not part of it.
+type DependencyRow = {
+  TaskID: number;
+  RequiredTaskID: number;
+  RequiredTitle: string;
+  UniversityID: number | null;
+  ApplicableProgram: TemplateRule["applicableProgram"];
+  AccommodationCondition: TemplateRule["accommodationCondition"];
+  IsActive: boolean;
+  JourneyUniversityID: number;
+  ProgramType: JourneyProfile["programType"];
+  AccommodationStatus: JourneyProfile["accommodationStatus"];
+};
+
+// Dependencies of every task in the journey, including prerequisites that are not part of it,
+// with whether each prerequisite template applies to the journey (same rule as journey creation).
 async function journeyDependencies(journeyId: number, locale: Locale, executor?: Executor) {
-  const rows = await query<{ TaskID: number; RequiredTaskID: number; RequiredTitle: string }>(
-    `SELECT d.TaskID, d.RequiredTaskID, ${localizedTitle("r", "tt")} AS RequiredTitle
-       FROM dbo.Task_Dependencies d
+  const rows = await query<DependencyRow>(
+    `SELECT d.TaskID, d.RequiredTaskID, ${localizedTitle("r", "tt")} AS RequiredTitle,
+            r.UniversityID, r.ApplicableProgram, r.AccommodationCondition, r.IsActive,
+            j.UniversityID AS JourneyUniversityID, j.ProgramType, j.AccommodationStatus
+       FROM dbo.Journeys j
+       JOIN dbo.Task_Dependencies d ON d.TaskID IN (SELECT TaskID FROM dbo.Journey_Tasks WHERE JourneyID = j.JourneyID)
        JOIN dbo.Task_Templates r ON r.TaskID = d.RequiredTaskID
        LEFT JOIN dbo.Task_Template_Translations tt ON tt.TaskID = r.TaskID AND tt.LanguageCode = @lang
-      WHERE d.TaskID IN (SELECT TaskID FROM dbo.Journey_Tasks WHERE JourneyID = @journeyId)`,
+      WHERE j.JourneyID = @journeyId`,
     { journeyId: [sql.Int, journeyId], lang: [sql.Char(2), locale] },
     executor,
+  );
+  const applicable = new Set(
+    rows
+      .filter((r) =>
+        isTemplateApplicable(
+          { taskId: r.RequiredTaskID, universityId: r.UniversityID, applicableProgram: r.ApplicableProgram, accommodationCondition: r.AccommodationCondition, isActive: r.IsActive },
+          { universityId: r.JourneyUniversityID, programType: r.ProgramType, accommodationStatus: r.AccommodationStatus },
+        ),
+      )
+      .map((r) => r.RequiredTaskID),
   );
   return {
     dependencies: rows.map((r): Dependency => ({ taskId: r.TaskID, requiredTaskId: r.RequiredTaskID })),
     titles: new Map(rows.map((r) => [r.RequiredTaskID, r.RequiredTitle])),
+    appliesToJourney: (taskId: number) => applicable.has(taskId),
   };
 }
 
 // Caller must have verified that the journey belongs to the user.
 export async function listJourneyTasks(journeyId: number, locale: Locale): Promise<JourneyTaskView[]> {
-  const [rows, { dependencies, titles }] = await Promise.all([journeyTaskRows(journeyId, locale), journeyDependencies(journeyId, locale)]);
+  const [rows, { dependencies, titles, appliesToJourney }] = await Promise.all([journeyTaskRows(journeyId, locale), journeyDependencies(journeyId, locale)]);
   const states = rows.map((r) => ({ taskId: r.TaskID, status: r.TaskStatus }));
   return rows.map((row) => ({
     ...row,
-    unmet: row.TaskStatus === "Completed" ? [] : unmetPrerequisites(row.TaskID, states, dependencies).map((u) => ({ ...u, title: titles.get(u.requiredTaskId) ?? "?" })),
+    unmet: row.TaskStatus === "Completed" ? [] : unmetPrerequisites(row.TaskID, states, dependencies, appliesToJourney).map((u) => ({ ...u, title: titles.get(u.requiredTaskId) ?? "?" })),
   }));
 }
 
@@ -84,7 +114,8 @@ export type TaskDetail = JourneyTaskView & {
   dependents: { taskId: number; title: string; status: TaskStatus; journeyTaskId: number }[];
 };
 
-export async function getTaskDetail(userId: number, journeyTaskId: number, locale: Locale): Promise<TaskDetail | undefined> {
+// Cached per request: the task page and its metadata (document title) read the same task.
+export const getTaskDetail = cache(async (userId: number, journeyTaskId: number, locale: Locale): Promise<TaskDetail | undefined> => {
   const owner = await queryOne<{ JourneyID: number; UserID: number; UniversityName: string; City: string }>(
     `SELECT j.JourneyID, j.UserID, u.UniversityName, u.City
        FROM dbo.Journey_Tasks jt
@@ -130,7 +161,7 @@ export async function getTaskDetail(userId: number, journeyTaskId: number, local
       .filter((t) => t !== undefined)
       .map((t) => ({ taskId: t.TaskID, title: t.TaskTitle, status: t.TaskStatus, journeyTaskId: t.JourneyTaskID })),
   };
-}
+});
 
 export function listSourcesForTask(taskId: number, locale: Locale) {
   return query<SourceRow>(

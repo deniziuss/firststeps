@@ -34,8 +34,22 @@ export async function changeAccommodation(_: ActionResult | undefined, formData:
   const { t } = await getActionI18n();
   const parsed = accommodationSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: t("validation.checkFields") };
-  const result = await runAction(t, () => journeys.changeAccommodation(user.id, parsed.data.journeyId, parsed.data.accommodationStatus));
+  const result = await runAction(t, () => journeys.replanJourney(user.id, parsed.data.journeyId, parsed.data.accommodationStatus));
   revalidatePath(`/journey/${parsed.data.journeyId}`);
+  if (!result.ok) return result;
+  return { ok: true, message: t("journey.planUpdated", { added: result.data!.added, retired: result.data!.retired, reopened: result.data!.reopened }) };
+}
+
+const refreshPlanSchema = z.object({ journeyId: z.coerce.number().int().positive() });
+
+// Adds tasks that apply to the journey but are missing from it (Issue 001, data gap).
+export async function refreshPlan(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  const user = await requireRole("Student");
+  const { t } = await getActionI18n();
+  const parsed = refreshPlanSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, error: t("validation.checkFields") };
+  const result = await runAction(t, () => journeys.replanJourney(user.id, parsed.data.journeyId));
+  revalidatePath("/", "layout");
   if (!result.ok) return result;
   return { ok: true, message: t("journey.planUpdated", { added: result.data!.added, retired: result.data!.retired, reopened: result.data!.reopened }) };
 }

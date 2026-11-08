@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { StudentTaskStatus, TaskStatus } from "@/domain/statuses";
 import { useI18n } from "@/i18n/client";
 import type { ActionResult } from "@/server/errors";
-import { createHelpRequest, updateTaskStatus } from "@/server/actions/student";
+import { createHelpRequest, refreshPlan, updateTaskStatus } from "@/server/actions/student";
 
 type Dispatch = (formData: FormData) => void;
 
@@ -104,6 +104,18 @@ export function HelpRequestForm({ journeyTaskId, taskTitle, startOpen = false }:
           {t("common.cancel")}
         </Button>
       </div>
+      <FormMessage state={state} />
+    </form>
+  );
+}
+
+export function RefreshPlanForm({ journeyId }: { journeyId: number }) {
+  const { t } = useI18n();
+  const [state, action] = useActionState(refreshPlan, undefined);
+  return (
+    <form action={action} className="grid justify-items-start gap-3">
+      <input type="hidden" name="journeyId" value={journeyId} />
+      <SubmitButton pendingText={t("journey.updatingPlan")}>{t("journey.updatePlan")}</SubmitButton>
       <FormMessage state={state} />
     </form>
   );

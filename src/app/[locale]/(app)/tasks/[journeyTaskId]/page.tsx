@@ -10,11 +10,15 @@ import { categoryLabel } from "@/lib/content";
 import { requireRole } from "@/server/dal";
 import { listStudentRequests } from "@/server/repositories/help";
 import { getTaskDetail } from "@/server/repositories/tasks";
-import { HelpRequestForm, StatusActions } from "./task-forms";
+import { HelpRequestForm, RefreshPlanForm, StatusActions } from "./task-forms";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const { t } = await getI18n();
-  return { title: t("task.whatToDo") };
+// The document title names the task, so browser tabs and screen readers can tell task pages apart.
+export async function generateMetadata({ params }: PageProps<"/[locale]/tasks/[journeyTaskId]">): Promise<Metadata> {
+  const user = await requireRole("Student");
+  const { t, locale } = await getI18n();
+  const journeyTaskId = Number((await params).journeyTaskId);
+  const task = Number.isInteger(journeyTaskId) ? await getTaskDetail(user.id, journeyTaskId, locale) : undefined;
+  return { title: task?.TaskTitle ?? t("task.whatToDo") };
 }
 
 export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[journeyTaskId]">) {
@@ -27,7 +31,8 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
 
   const requests = await listStudentRequests(user.id, locale, task.JourneyTaskID);
   const locked = task.unmet.length > 0;
-  const unavailable = task.unmet.some((u) => u.reason !== "open");
+  const missing = task.unmet.some((u) => u.reason === "missing");
+  const unavailable = !missing && task.unmet.some((u) => u.reason === "notApplicable");
   const status = displayStatus(task.TaskStatus, locked);
 
   return (
@@ -40,6 +45,10 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
           {t(`stages.${task.JourneyStage}`)} · {categoryLabel(i18n, task.Category)} · {t("task.priority", { value: task.Priority })}
         </p>
         <h1 className="max-w-3xl text-3xl font-semibold sm:text-4xl">{task.TaskTitle}</h1>
+        {/* On small screens the status panel comes after the guidance, so show the status right away. */}
+        <div className="lg:hidden">
+          <TaskStatusBadge status={status} i18n={i18n} />
+        </div>
         {task.IsFallback && (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <LanguagesIcon className="size-4" aria-hidden /> {t("task.translationMissing")}
@@ -47,8 +56,10 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
         )}
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-[1fr_340px]">
-        <div className="grid min-w-0 content-start gap-10">
+      {/* Reading order (also on phones): guidance and sources, then status and prerequisites, then help.
+          On wide screens the status column sits beside both. */}
+      <div className="grid gap-10 lg:grid-cols-[1fr_340px] lg:grid-rows-[auto_1fr]">
+        <div className="grid min-w-0 content-start gap-10 lg:col-start-1 lg:row-start-1">
           <Section id="what-to-do" title={t("task.whatToDo")}>
             <div className="grid gap-3 text-base leading-relaxed">
               <p>{task.Description ?? t("task.noGuidance")}</p>
@@ -91,31 +102,9 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
             )}
           </Section>
 
-          <Section id="stuck" title={t("help.stuckTitle")} description={t("help.stuckIntro")}>
-            {requests.length > 0 && (
-              <ul className="grid gap-3">
-                {requests.map((request) => (
-                  <li key={request.RequestID} className="grid gap-2 rounded-xl border bg-card p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium">{request.Subject}</p>
-                      <RequestStatusBadge status={request.RequestStatus} i18n={i18n} />
-                    </div>
-                    <p className="text-muted-foreground">{request.ProblemDescription}</p>
-                    {request.ResolutionText && (
-                      <div className="mt-1 rounded-lg border-l-4 border-gold bg-gold-soft p-3">
-                        <p className="text-sm font-medium">{t("help.answerFrom", { name: request.MentorFirstName ?? t("help.team") })}</p>
-                        <p className="mt-1">{request.ResolutionText}</p>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <HelpRequestForm journeyTaskId={task.JourneyTaskID} taskTitle={task.TaskTitle} startOpen={unavailable} />
-          </Section>
         </div>
 
-        <aside className="grid content-start gap-6 lg:sticky lg:top-24">
+        <aside className="grid content-start gap-6 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
           <section aria-labelledby="status" className="grid gap-4 rounded-2xl border bg-card p-5">
             <div className="flex items-center justify-between gap-2">
               <h2 id="status" className="text-lg font-semibold">
@@ -159,7 +148,16 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
                 ))}
               </ul>
             )}
-            {unavailable ? (
+            {missing ? (
+              <Alert className="border-gold/50 bg-gold-soft">
+                <ShieldQuestionIcon aria-hidden />
+                <AlertTitle>{t("task.missingTitle")}</AlertTitle>
+                <AlertDescription className="grid gap-3 text-foreground">
+                  <p>{t("task.missingText")}</p>
+                  <RefreshPlanForm journeyId={task.JourneyID} />
+                </AlertDescription>
+              </Alert>
+            ) : unavailable ? (
               <Alert className="border-gold/50 bg-gold-soft">
                 <ShieldQuestionIcon aria-hidden />
                 <AlertTitle>{t("task.unavailableTitle")}</AlertTitle>
@@ -194,6 +192,31 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
 
           <p className="text-sm text-muted-foreground">{t("task.location", { university: task.UniversityName, city: task.City })}</p>
         </aside>
+
+        <div className="grid min-w-0 content-start lg:col-start-1 lg:row-start-2">
+          <Section id="stuck" title={t("help.stuckTitle")} description={t("help.stuckIntro")}>
+            {requests.length > 0 && (
+              <ul className="grid gap-3">
+                {requests.map((request) => (
+                  <li key={request.RequestID} className="grid gap-2 rounded-xl border bg-card p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium">{request.Subject}</p>
+                      <RequestStatusBadge status={request.RequestStatus} i18n={i18n} />
+                    </div>
+                    <p className="text-muted-foreground">{request.ProblemDescription}</p>
+                    {request.ResolutionText && (
+                      <div className="mt-1 rounded-lg border-l-4 border-gold bg-gold-soft p-3">
+                        <p className="text-sm font-medium">{t("help.answerFrom", { name: request.MentorFirstName ?? t("help.team") })}</p>
+                        <p className="mt-1">{request.ResolutionText}</p>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <HelpRequestForm journeyTaskId={task.JourneyTaskID} taskTitle={task.TaskTitle} startOpen={unavailable} />
+          </Section>
+        </div>
       </div>
     </div>
   );
