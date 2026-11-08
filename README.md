@@ -4,7 +4,7 @@ A personalized onboarding and relocation platform for international students.
 
 FirstSteps turns the arrival process of an international student into a personal, ordered plan: which tasks apply to them, what has to happen first, where the official information is, and who can help when they get stuck. The first pilot scope is Erasmus and international students arriving in Liepāja, Latvia.
 
-> **Status:** working MVP, developed and tested locally against Microsoft SQL Server. It is a student project and is not deployed. It is not affiliated with or endorsed by any university, and its guidance is informational, not legal advice.
+> **Status:** alpha (v0.0.1 in review), developed and tested locally against Microsoft SQL Server. It is a student project and is not deployed. It is not affiliated with or endorsed by any university, and its guidance is informational, not legal advice.
 
 ## The problem
 
@@ -23,18 +23,20 @@ Implemented and covered by tests (see [docs/testing.md](docs/testing.md)):
 - **Local essentials:** a city and university guide built from the practical task content and its sources.
 - **Dashboards and reports:** student progress by stage, a printable progress report, a mentor queue, and an admin overview with anonymous aggregate charts.
 - **Admin panel:** universities, task templates, dependencies (with cycle and applicability checks), source review, help request assignment and user roles.
-- **UI:** responsive layout, light and dark theme, explicit empty, loading and error states.
+- **English and Turkish:** the whole interface, validation messages and dates are available in both languages. The language switch is in the header before and after sign-in and is remembered in a cookie. Task and source texts from the database are translated; when a translation is missing, the English text is shown with a notice.
+- **UI:** a natural palette (deep forest, forest green, warm ivory, ochre gold, warm taupe) with light and dark themes, a responsive layout from 360 px, explicit empty, loading and error states, keyboard access and a skip link. Automated WCAG 2.2 AA checks (axe-core) pass on the public and student screens in both languages and themes.
 
 ## Tech stack
 
 | Area | Technology |
 |---|---|
 | Web app | Next.js 16 (App Router, Server Actions), React 19, TypeScript |
-| UI | Tailwind CSS 4, shadcn/ui (Radix), lucide-react, Recharts |
+| UI | Tailwind CSS 4, shadcn/ui (Radix), lucide-react, Recharts, Fraunces and Geist fonts |
+| Languages | English and Turkish: own typed dictionaries, `Intl` formatting, locale routing through the Next.js proxy |
 | Validation | Zod |
 | Database | Microsoft SQL Server (developed on SQL Server 2022 Express), `mssql` driver |
 | Auth | argon2id (`@node-rs/argon2`), signed HTTP-only session cookie (`jose`) |
-| Tests | Vitest (unit), Playwright (end-to-end), SQL verification script |
+| Tests | Vitest (unit), Playwright (end-to-end), axe-core (accessibility), SQL verification script |
 
 ## Architecture
 
@@ -49,7 +51,8 @@ Next.js App Router — server components and server actions
   ├── src/domain/             pure business rules: task selection, prerequisites, cycles, re-planning, progress
   └── src/server/repositories parameterized SQL and stored procedure calls
         │
-Microsoft SQL Server — 8 tables, PK/FK/UNIQUE/CHECK constraints, 3 triggers, 5 stored procedures
+Microsoft SQL Server — 8 tables, PK/FK/UNIQUE/CHECK constraints, 3 triggers, 5 stored procedures,
+                       plus 2 translation tables (migration 0002)
 ```
 
 The application checks the rules first to give clear messages; the database enforces them again with constraints and triggers. Details and design decisions: [docs/architecture.md](docs/architecture.md).
@@ -76,7 +79,7 @@ npm run db:seed-users
 npm run dev
 ```
 
-- `db:local:setup` creates the `FirstSteps_Dev` database, a least-privilege application login, applies `database/migrations/0001_initial_schema.sql` (only when the database is empty), loads synthetic pilot content and runs the verification script. It also creates `.env.local` with generated secrets. It never drops data.
+- `db:local:setup` creates the `FirstSteps_Dev` database (with `AUTO_CLOSE` off), a least-privilege application login, applies every file in `database/migrations/` (each is idempotent), loads synthetic pilot content and its Turkish translations, sets the instance's minimum memory (`database/local/05_server_settings.sql`) and runs the verification script. It also creates `.env.local` with generated secrets. It never drops data.
 - `db:seed-users` creates one synthetic admin and one synthetic mentor account; their passwords are written only to `.env.local`.
 - Open http://localhost:3000 and register a student account.
 
@@ -98,20 +101,22 @@ See [`.env.example`](.env.example). The app refuses to start its database connec
 |---|---|
 | `npm run typecheck` | TypeScript |
 | `npm run lint` | ESLint |
-| `npm test` | Unit tests for the business rules |
+| `npm test` | Unit tests: business rules, translation dictionaries (same keys, placeholders, every key used in code exists) |
 | `npm run build` | Production build |
-| `npm run test:e2e` | Playwright end-to-end tests against a local production build (needs the local database, seeded users and Microsoft Edge) |
-| `npm run db:local:setup` | Includes `database/local/03_verify.sql`: object counts and trigger/procedure behaviour, rolled back |
+| `npm run test:e2e` | Playwright end-to-end tests against a local production build: student, mentor and admin flows in English and Turkish, language switching, accessibility (needs the local database, seeded users and Microsoft Edge) |
+| `npm run db:local:setup` | Includes `database/local/04_verify.sql`: object counts and trigger/procedure behaviour, rolled back |
 
 GitHub Actions runs install, typecheck, lint, unit tests and the production build on every push and pull request. Database-backed and end-to-end tests run locally only for now.
 
 ## Project structure
 
 ```
-database/migrations/   schema migrations (0001: tables, indexes, triggers, procedures)
+database/migrations/   schema migrations (0001: tables, indexes, triggers, procedures; 0002: content translations)
 database/local/        local setup: database and login, synthetic content, verification, SQL Express configuration
 scripts/db/            setup, connection check, schema snapshot, synthetic users
-src/app/               routes: (auth) sign-in/register, (app) student, mentor and admin screens
+src/app/[locale]/      routes: (auth) sign-in/register, (app) student, mentor and admin screens
+src/i18n/              locale config, English and Turkish dictionaries, translator and formatters
+src/proxy.ts           maps clean URLs to the language from the cookie
 src/components/        UI components
 src/domain/            business rules (unit tested)
 src/server/            environment, database access, session, authorization, repositories, server actions
@@ -121,7 +126,7 @@ docs/                  architecture, database, testing, progress
 
 ## Current status and roadmap
 
-All MVP modules listed above are implemented and tested locally. Current state and open items: [docs/progress.md](docs/progress.md).
+All modules listed above are implemented and tested locally. Current state and open items: [docs/progress.md](docs/progress.md).
 
 Known open points:
 
@@ -132,7 +137,7 @@ Planned, not yet implemented:
 
 - Email verification and password reset
 - Audit trail for admin changes
-- Multilingual content
+- Languages beyond English and Turkish
 - Additional cities, universities and countries
 - Real-time chat between students and mentors
 - Calendar and budget planning

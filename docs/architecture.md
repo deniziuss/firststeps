@@ -59,11 +59,18 @@ Prisma is compatible, but lost defaults on introspection, error numbers only as 
 
 A `THROW` inside a trigger dooms the transaction. `withTransaction` rolls back and the error is translated to a user message (`src/server/errors.ts`).
 
+### Languages (English, Turkish)
+- Routes live under `src/app/[locale]/`. `src/proxy.ts` rewrites clean URLs (`/dashboard`) to the locale from the `fs_locale` cookie (default English); a prefixed URL such as `/tr/dashboard` sets the cookie. Server components read the locale with `next/root-params`, server actions from the cookie.
+- Interface text comes from typed dictionaries (`src/i18n/messages/en.ts`, `tr.ts`); a missing or extra key is a type error and the unit tests check placeholders. Validation and server errors carry message keys and are translated where they are shown. Dates and numbers use `Intl`.
+- Content (task and source texts) comes from the database: English in the course tables, Turkish in the translation tables, with English fallback and a notice ([database.md](database.md#content-translations-0002_content_translationssql)).
+- Admin task pages in Turkish still show the English source title and the stored category codes, because those are what admins edit.
+
 ### Next.js 16 notes
 - `cacheComponents` is enabled (it becomes the default in the next major version). The shell is static; user-dependent navigation and header parts render in their own `<Suspense>` boundaries and pages render behind `loading.tsx`.
 - `mssql` is listed in `serverExternalPackages`; bundling it pulls in `@azure/identity` → `open`, which breaks the build.
 - In development the Next.js overlay shows an "instant navigation" insight for pages that read the session. It is a performance hint, not a functional error.
 - On streamed pages `notFound()` responds with HTTP 200 and renders "Page not found"; no data is rendered.
+- Metadata is streamed too: `<title>` is filled a few milliseconds after the first HTML (12–80 ms measured warm).
 
 ## Out of scope for the MVP
-Real-time chat, email verification and password reset, a persistent audit trail, multilingual content, document upload, payments.
+Real-time chat, email verification and password reset, a persistent audit trail, languages beyond English and Turkish, document upload, payments.

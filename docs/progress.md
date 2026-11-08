@@ -2,29 +2,37 @@
 
 Last updated: 2026-11-08
 
-## Phase status
+## Releases
 
-| Phase | Status | Evidence |
+| Version | State | Branch |
 |---|---|---|
-| 1 Foundation | Done | Local SQL Server 2022 Express; `FirstSteps_Dev` from `0001_initial_schema.sql`; database verification 10/10; `mssql` data access layer; Prisma compatibility trial and decision |
-| 2 Authentication & onboarding | Done | Registration (argon2id, insert procedure), sign in/out, sessions, role routing, rate limits, profile and password, onboarding |
-| 3 Journey engine | Done | Personal task generation (transaction procedure), stages, prerequisite locks, status changes, reopen rule, re-planning, progress |
-| 4 Guidance & assistance | Done | Task guides, sources with review status, I'm stuck, mentor answers, local essentials |
-| 5 Administration & analytics | Done | Universities, templates, dependencies (cycle and applicability checks), source review, request assignment, user roles, reports, student progress report |
-| 6 Testing & finalization | Done for the MVP | Unit, E2E and database tests; security review; light/dark and mobile checks |
-| 7 Version control & CI | Done | Public GitHub repository, GitHub Actions (install, typecheck, lint, unit tests, build) |
+| MVP | Merged to `main` (`663fcdf`) | `main` |
+| v0.0.1-alpha | In review (pull request), not tagged | `feat/alpha-0.0.1-ui-i18n` |
 
-## Latest local results (2026-11-08)
-Typecheck and lint pass · unit tests 26/26 · production build passes · E2E 7/7 · database verification 10/10 · `npm audit --omit=dev`: 0 vulnerabilities.
+## v0.0.1-alpha: UX, design, English/Turkish
+
+| Area | Status | Evidence |
+|---|---|---|
+| Design system | Done | Palette tokens for light and dark themes in `src/app/globals.css`; contrast measured for every text token (AA on background and card); Fraunces headings, Geist body; restyled buttons, inputs and cards |
+| UX | Done | Dashboard built around one "next step"; task page with one primary action per state; status badges with icon, label and description legend; confirmation dialogs for reopen, withdraw and delete; skip link, visible focus, 44 px targets |
+| Internationalization | Done | `src/i18n` dictionaries (en, tr) with compile-time key checks; locale routing via `src/proxy.ts` and `next/root-params`; translated validation and server messages; `Intl` dates and numbers |
+| Bilingual content | Done | Migration `0002_content_translations.sql` (local only); Turkish seed for 18 tasks and 9 sources; English fallback with a notice; admins edit Turkish titles and descriptions |
+| Reliability fix | Done | Local DB: `AUTO_CLOSE OFF` and `min server memory` 512 MB, after concurrent page loads stalled on `RESOURCE_SEMAPHORE` waits (see database.md) |
+| Tests | Done | 35 unit, 14 E2E (two consecutive green runs), 10 database checks, axe-core WCAG 2.2 AA in both languages and themes, bilingual screen sweep |
+
+## Results (2026-11-08)
+Typecheck, lint and production build pass · unit 35/35 · E2E 14/14 in two consecutive runs · database verification 10/10 · axe-core: no violations on public and student pages (en/tr, light/dark) · screen sweep of every page in en/tr, light/dark, 360 px and 1280 px: no untranslated text, raw keys, overflow or empty titles (admin exceptions below) · `npm audit --omit=dev`: 0 vulnerabilities.
 
 ## Open items
-1. **Prerequisite rule ([issues/001](issues/001-prerequisite-satisfaction.md))**: needs a product decision on missing / not-applicable prerequisites.
-2. **Content**: task and source texts are synthetic drafts; all sources are `PendingReview` and need a real review before use.
-3. **CI**: database-backed and end-to-end tests are local only until an isolated SQL Server service is set up for CI.
-4. **Not yet implemented**: email verification, password reset, audit trail, multilingual content, real-time chat, deployment.
+1. **Prerequisite rule ([issues/001](issues/001-prerequisite-satisfaction.md))**: product decision on missing / not-applicable prerequisites is still open.
+2. **Content**: task and source texts are synthetic drafts; all sources are `PendingReview`. The Turkish translations are drafts too.
+3. **Admin in Turkish**: admins edit the English source text, so the English title stays visible under the Turkish one and category codes (`University`, `Housing`, …) are entered as stored.
+4. **Accessibility**: automated checks cover admin and mentor screens only through the sweep, not axe; a manual screen reader review has not been done.
+5. **CI**: database-backed and end-to-end tests run locally only.
+6. **Not yet implemented**: email verification, password reset, audit trail, real-time chat, deployment.
 
 ## Working agreement
 - `main` stays green: typecheck, lint, unit tests and build pass before every push; database and E2E tests run locally for changes that touch them.
-- Larger or risky changes go through a feature branch and a pull request.
+- Larger or risky changes go through a feature branch and a pull request; release tags only after approval.
 - Commit messages use conventional prefixes (`feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `ci:`).
 - This file is updated at the end of every development session.

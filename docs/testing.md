@@ -7,10 +7,30 @@
 | Unit (Vitest) | `npm test` | Local and CI |
 | Production build | `npm run build` | Local and CI |
 | End-to-end (Playwright, Microsoft Edge, production build on port 3100) | `npm run test:e2e` | Local only (needs the database) |
-| Database behaviour | `npm run db:local:setup` (`03_verify.sql`) | Local only |
+| Database behaviour | `npm run db:local:setup` (`04_verify.sql`) | Local only |
+| Accessibility (axe-core, WCAG 2.2 AA rules) | part of `npm run test:e2e` | Local only |
 | Dependency audit | `npm audit --omit=dev` | Local |
 
 End-to-end tests sign in with the synthetic admin and mentor accounts from `.env.local` (`npm run db:seed-users`).
+
+## Test isolation
+- Every test gets its own browser context with an English `fs_locale` cookie (auto fixture in `tests/e2e/fixtures.ts`). Tests that need Turkish set it themselves with `useLocale`; checks in another language or as another user run in a separate context, so no test depends on the order of the others.
+- Cookies are set host-only (`url`), like the cookie the app sets, so the two never coexist with different values.
+- Progress checks are exact: the expected "1 of N" is computed from the applicable tasks visible on the journey page, not matched with a loose pattern.
+- A test that creates an active task template deactivates it in `finally` from its own admin session, so a failure cannot change the task lists of later tests.
+
+## Alpha v0.0.1 results (2026-11-08)
+| Check | Result |
+|---|---|
+| Typecheck, lint, build | Pass |
+| Unit | 35/35 (rule engine, dependency graph, progress, i18n key parity and placeholders) |
+| End-to-end | 14/14, two consecutive runs |
+| Database verification | 10/10 PASS |
+| axe-core | No violations: public pages and student pages, English and Turkish, light and dark |
+| Screen sweep (all pages, en/tr, light/dark, 360 px and 1280 px) | No other-language text, raw message keys, horizontal overflow or empty titles; intentional English on admin task pages (English source title, stored category codes) |
+
+## Document title
+On dynamic pages Next.js streams metadata, so `<title>` is filled shortly after the first HTML. Measured on the production build: 12–80 ms when warm. Longer gaps only appeared on a cold database (see [database.md](database.md#local-sql-server-express-settings)). The accessibility test waits for the title before running axe.
 
 Latest results are recorded in [progress.md](progress.md).
 
