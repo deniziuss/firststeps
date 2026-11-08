@@ -18,13 +18,16 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       <a href="#main" className="sr-only z-50 rounded-lg bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
         {t("common.skipToContent")}
       </a>
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-8 border-r bg-sidebar px-4 py-6 print:hidden lg:flex">
-        <Suspense fallback={<Brand />}>
-          <UserBrand />
-        </Suspense>
-        <Suspense fallback={<NavSkeleton />}>
-          <UserNav />
-        </Suspense>
+      {/* The column carries the background for the full page height; its content stays in view. */}
+      <aside className="hidden w-64 shrink-0 border-r bg-sidebar print:hidden lg:block">
+        <div className="sticky top-0 flex h-screen flex-col gap-8 px-4 py-6">
+          <Suspense fallback={<Brand />}>
+            <UserBrand />
+          </Suspense>
+          <Suspense fallback={<NavSkeleton />}>
+            <UserNav />
+          </Suspense>
+        </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur print:hidden sm:px-6">

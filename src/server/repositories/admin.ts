@@ -2,7 +2,9 @@ import "server-only";
 import type { Dependency } from "@/domain/prerequisites";
 import type { AccommodationCondition, ApplicableProgram, JourneyStage, SourceStatus } from "@/domain/statuses";
 import { execute, query, queryOne, sql, withTransaction, type Params } from "../db";
+import type { Locale } from "@/i18n/config";
 import { AppError } from "../errors";
+import { localizedTitle } from "./localized";
 
 export type TemplateRow = {
   TaskID: number;
@@ -140,13 +142,18 @@ export type SourceAdminRow = {
   CreatedAt: Date;
 };
 
-export function listSources(filter: { taskId?: number; status?: SourceStatus }) {
+// Titles in the admin's language when a translation exists, English otherwise.
+export function listSources(filter: { taskId?: number; status?: SourceStatus; locale: Locale }) {
   return query<SourceAdminRow>(
-    `SELECT s.SourceID, s.TaskID, t.TaskTitle, s.SourceTitle, s.SourceURL, s.SourceStatus, s.LastVerifiedAt, s.CreatedAt
-       FROM dbo.Information_Sources s JOIN dbo.Task_Templates t ON t.TaskID = s.TaskID
+    `SELECT s.SourceID, s.TaskID, ${localizedTitle("t", "tt")} AS TaskTitle, COALESCE(st.SourceTitle, s.SourceTitle) AS SourceTitle,
+            s.SourceURL, s.SourceStatus, s.LastVerifiedAt, s.CreatedAt
+       FROM dbo.Information_Sources s
+       JOIN dbo.Task_Templates t ON t.TaskID = s.TaskID
+       LEFT JOIN dbo.Task_Template_Translations tt ON tt.TaskID = t.TaskID AND tt.LanguageCode = @lang
+       LEFT JOIN dbo.Information_Source_Translations st ON st.SourceID = s.SourceID AND st.LanguageCode = @lang
       WHERE (@taskId IS NULL OR s.TaskID = @taskId) AND (@status IS NULL OR s.SourceStatus = @status)
-      ORDER BY CASE s.SourceStatus WHEN N'PendingReview' THEN 1 WHEN N'Outdated' THEN 2 ELSE 3 END, s.LastVerifiedAt, t.TaskTitle`,
-    { taskId: [sql.Int, filter.taskId ?? null], status: [sql.NVarChar(20), filter.status ?? null] },
+      ORDER BY CASE s.SourceStatus WHEN N'PendingReview' THEN 1 WHEN N'Outdated' THEN 2 ELSE 3 END, s.LastVerifiedAt, TaskTitle`,
+    { taskId: [sql.Int, filter.taskId ?? null], status: [sql.NVarChar(20), filter.status ?? null], lang: [sql.Char(2), filter.locale] },
   );
 }
 
@@ -227,7 +234,7 @@ export function universityUsage() {
 }
 
 // Aggregates only: no names, emails or free text, so reports stay anonymous.
-export async function systemStats() {
+export async function systemStats(locale: Locale) {
   const [counts, taskStatus, requestStatus, sourceStatus, usersByRole, programs, stageCompletion, stuckTasks] = await Promise.all([
     queryOne<{ Students: number; Journeys: number; ActiveJourneys: number; Templates: number; ActiveTemplates: number; Universities: number; AvgResolveHours: number | null }>(
       `SELECT (SELECT COUNT(*) FROM dbo.Users WHERE UserRole = N'Student') AS Students,
@@ -251,11 +258,13 @@ export async function systemStats() {
         GROUP BY t.JourneyStage`,
     ),
     query<{ TaskTitle: string; Requests: number; Blocked: number }>(
-      `SELECT TOP (8) t.TaskTitle,
+      `SELECT TOP (8) ${localizedTitle("t", "tt")} AS TaskTitle,
               (SELECT COUNT(*) FROM dbo.Help_Requests hr JOIN dbo.Journey_Tasks jt ON jt.JourneyTaskID = hr.JourneyTaskID WHERE jt.TaskID = t.TaskID) AS Requests,
               (SELECT COUNT(*) FROM dbo.Journey_Tasks jt WHERE jt.TaskID = t.TaskID AND jt.TaskStatus = N'Blocked') AS Blocked
          FROM dbo.Task_Templates t
-        ORDER BY Requests DESC, Blocked DESC, t.TaskTitle`,
+         LEFT JOIN dbo.Task_Template_Translations tt ON tt.TaskID = t.TaskID AND tt.LanguageCode = @lang
+        ORDER BY Requests DESC, Blocked DESC, TaskTitle`,
+      { lang: [sql.Char(2), locale] },
     ),
   ]);
   return { counts: counts!, taskStatus, requestStatus, sourceStatus, usersByRole, programs, stageCompletion, stuckTasks: stuckTasks.filter((s) => s.Requests > 0 || s.Blocked > 0) };

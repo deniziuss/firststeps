@@ -44,7 +44,7 @@ export default async function TemplatePage({ params }: PageProps<"/[locale]/admi
     listUniversities(),
     listPrerequisites(template.TaskID),
     listTemplates(),
-    listSources({ taskId: template.TaskID }),
+    listSources({ taskId: template.TaskID, locale: i18n.locale }),
   ]);
   const candidates = templates.filter((tpl) => tpl.TaskID !== template.TaskID && !prerequisites.some((p) => p.TaskID === tpl.TaskID));
 

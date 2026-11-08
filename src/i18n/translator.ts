@@ -51,11 +51,13 @@ export function createFormatters(locale: Locale) {
   const date = new Intl.DateTimeFormat(intl, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
   const dateTime = new Intl.DateTimeFormat(intl, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
   const number = new Intl.NumberFormat(intl);
+  const decimal = new Intl.NumberFormat(intl, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const percent = new Intl.NumberFormat(intl, { style: "percent", maximumFractionDigits: 0 });
   return {
     date: (value: Date | string | null | undefined) => (value ? date.format(new Date(value)) : "—"),
     dateTime: (value: Date | string | null | undefined) => (value ? `${dateTime.format(new Date(value))} UTC` : "—"),
     number: (value: number) => number.format(value),
+    decimal: (value: number) => decimal.format(value),
     percent: (ratio: number) => percent.format(ratio),
   };
 }

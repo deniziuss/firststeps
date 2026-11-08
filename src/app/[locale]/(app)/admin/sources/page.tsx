@@ -17,8 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function SourcesPage() {
   await requireRole("Admin");
   const i18n = await getI18n();
-  const { t, format } = i18n;
-  const sources = await listSources({});
+  const { t, format, locale } = i18n;
+  const sources = await listSources({ locale });
 
   return (
     <div className="grid gap-8">

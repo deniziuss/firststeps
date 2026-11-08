@@ -43,8 +43,9 @@ export default async function TemplatesPage() {
               <TableRow key={tpl.TaskID} className={tpl.IsActive ? undefined : "text-muted-foreground"}>
                 <TableCell className="min-w-64 whitespace-normal">
                   <Link href={`/admin/templates/${tpl.TaskID}`} className="font-medium underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
-                    {tpl.TaskTitle}
+                    {i18n.locale === "tr" && tpl.TitleTr ? tpl.TitleTr : tpl.TaskTitle}
                   </Link>
+                  {i18n.locale === "tr" && tpl.TitleTr && <div className="text-xs text-muted-foreground" lang="en">{tpl.TaskTitle}</div>}
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                     <span>{categoryLabel(i18n, tpl.Category)}</span>
                     <span>· {t("task.priority", { value: tpl.Priority })}</span>

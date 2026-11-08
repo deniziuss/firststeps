@@ -25,7 +25,7 @@ export default async function AdminPage() {
   await requireRole("Admin");
   const i18n = await getI18n();
   const { t, format, locale } = i18n;
-  const [stats, openRequests, pendingSources] = await Promise.all([systemStats(), listAllRequests(locale, "Open"), listSources({ status: "PendingReview" })]);
+  const [stats, openRequests, pendingSources] = await Promise.all([systemStats(locale), listAllRequests(locale, "Open"), listSources({ status: "PendingReview", locale })]);
   const verified = stats.sourceStatus.find((s) => s.Status === "Verified")?.Total ?? 0;
   const totalSources = stats.sourceStatus.reduce((sum, s) => sum + s.Total, 0);
   const hours = stats.counts.AvgResolveHours;
@@ -39,7 +39,7 @@ export default async function AdminPage() {
         <StatCard label={t("admin.overview.verifiedSources")} value={`${verified}/${totalSources}`} hint={t("admin.overview.pendingSources", { count: pendingSources.length })} />
         <StatCard
           label={t("admin.overview.avgAnswer")}
-          value={hours === null ? "—" : t("admin.overview.hours", { value: hours.toFixed(1) })}
+          value={hours === null ? "—" : t("admin.overview.hours", { value: format.decimal(hours) })}
           hint={t("admin.overview.unassigned", { count: openRequests.length })}
         />
       </div>

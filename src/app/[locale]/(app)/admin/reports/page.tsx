@@ -28,8 +28,8 @@ function Panel({ id, title, text, children }: { id: string; title: string; text?
 
 export default async function ReportsPage() {
   await requireRole("Admin");
-  const { t } = await getI18n();
-  const stats = await systemStats();
+  const { t, locale } = await getI18n();
+  const stats = await systemStats(locale);
   const noData = t("admin.reports.noData");
   const stageData = JOURNEY_STAGES.map((stage) => {
     const row = stats.stageCompletion.find((s) => s.Stage === stage);
