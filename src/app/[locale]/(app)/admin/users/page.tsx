@@ -1,3 +1,4 @@
+import { parseId } from "@/lib/ids";
 import type { Metadata } from "next";
 import { NativeSelect } from "@/components/form";
 import { PageHeader } from "@/components/page";
@@ -23,8 +24,9 @@ export default async function UsersPage({ searchParams }: PageProps<"/[locale]/a
   const params = await searchParams;
   const role = USER_ROLES.find((r) => r === params.role) as UserRole | undefined;
   const search = typeof params.q === "string" ? params.q.trim().slice(0, 100) : undefined;
-  const requestedPage = Number(typeof params.page === "string" ? params.page : 1);
-  const { rows: users, total, page } = await listUsers({ role, search: search || undefined, page: Number.isInteger(requestedPage) ? requestedPage : 1 });
+  // Out-of-range pages fall back to the first page (and never reach SQL as an overflowing OFFSET).
+  const requestedPage = Math.min(parseId(params.page) ?? 1, 100_000);
+  const { rows: users, total, page } = await listUsers({ role, search: search || undefined, page: requestedPage });
   const pages = Math.max(1, Math.ceil(total / USERS_PAGE_SIZE));
   const pageHref = (target: number) => {
     const query = new URLSearchParams();

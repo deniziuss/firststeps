@@ -1,3 +1,4 @@
+import { parseId } from "@/lib/ids";
 import { safeHref } from "@/lib/safe-url";
 import { ArrowLeftIcon, ExternalLinkIcon, InfoIcon, LanguagesIcon, LockIcon, ShieldQuestionIcon } from "lucide-react";
 import type { Metadata } from "next";
@@ -17,8 +18,8 @@ import { HelpRequestForm, RefreshPlanForm, StatusActions } from "./task-forms";
 export async function generateMetadata({ params }: PageProps<"/[locale]/tasks/[journeyTaskId]">): Promise<Metadata> {
   const user = await requireRole("Student");
   const { t, locale } = await getI18n();
-  const journeyTaskId = Number((await params).journeyTaskId);
-  const task = Number.isInteger(journeyTaskId) ? await getTaskDetail(user.id, journeyTaskId, locale) : undefined;
+  const journeyTaskId = parseId((await params).journeyTaskId);
+  const task = journeyTaskId !== undefined ? await getTaskDetail(user.id, journeyTaskId, locale) : undefined;
   return { title: task?.TaskTitle ?? t("task.whatToDo") };
 }
 
@@ -26,8 +27,8 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
   const user = await requireRole("Student");
   const i18n = await getI18n();
   const { t, format, locale } = i18n;
-  const journeyTaskId = Number((await params).journeyTaskId);
-  const task = Number.isInteger(journeyTaskId) ? await getTaskDetail(user.id, journeyTaskId, locale) : undefined;
+  const journeyTaskId = parseId((await params).journeyTaskId);
+  const task = journeyTaskId !== undefined ? await getTaskDetail(user.id, journeyTaskId, locale) : undefined;
   if (!task) notFound();
 
   const requests = await listStudentRequests(user.id, locale, task.JourneyTaskID);

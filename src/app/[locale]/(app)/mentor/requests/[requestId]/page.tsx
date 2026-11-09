@@ -1,3 +1,4 @@
+import { parseId } from "@/lib/ids";
 import { ArrowLeftIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -13,8 +14,8 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/mentor/r
   const { t, locale } = await getI18n();
   const generic = { title: t("mentor.answerTitle") };
   const user = await getCurrentUser();
-  const requestId = Number((await params).requestId);
-  if (!user || (user.role !== "Mentor" && user.role !== "Admin") || !Number.isInteger(requestId)) return generic;
+  const requestId = parseId((await params).requestId);
+  if (!user || (user.role !== "Mentor" && user.role !== "Admin") || requestId === undefined) return generic;
   const request = await getMentorRequest(user.id, requestId, locale);
   return request ? { title: `${request.Subject} · ${t("mentor.answerTitle")}` } : generic;
 }
@@ -23,9 +24,9 @@ export default async function MentorRequestPage({ params }: PageProps<"/[locale]
   const user = await requireRole("Mentor", "Admin");
   const i18n = await getI18n();
   const { t, format, locale } = i18n;
-  const requestId = Number((await params).requestId);
+  const requestId = parseId((await params).requestId);
   // Only requests assigned to this mentor are found; anything else is a 404.
-  const request = Number.isInteger(requestId) ? await getMentorRequest(user.id, requestId, locale) : undefined;
+  const request = requestId !== undefined ? await getMentorRequest(user.id, requestId, locale) : undefined;
   if (!request) notFound();
 
   const canAnswer = request.RequestStatus === "Assigned" || request.RequestStatus === "Open";

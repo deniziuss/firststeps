@@ -9,6 +9,7 @@ import { getActionI18n } from "@/i18n/server";
 import type { I18n } from "@/i18n/translator";
 import {
   assignRequestSchema,
+  dbId,
   dependencySchema,
   fieldErrors,
   sourceSchema,
@@ -23,7 +24,7 @@ import * as admin from "../repositories/admin";
 import * as help from "../repositories/help";
 import * as users from "../repositories/users";
 
-const id = z.coerce.number().int().positive();
+const id = dbId;
 
 function invalid({ t, has }: I18n, error: z.ZodError): ActionResult {
   return { ok: false, error: t("validation.checkFields"), fieldErrors: fieldErrors(error, t, has) };
