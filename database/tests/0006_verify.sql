@@ -47,11 +47,13 @@ ROLLBACK TRANSACTION;
 
 -- Append-only audit log. Each refused change is tested in its own transaction (a trigger THROW
 -- dooms the transaction).
-DECLARE @admin INT = (SELECT TOP (1) UserID FROM dbo.Users WHERE UserRole = N'Admin' ORDER BY UserID);
-IF @admin IS NULL SET @admin = (SELECT TOP (1) UserID FROM dbo.Users ORDER BY UserID);
+-- Each block creates its own admin inside the transaction, so the checks also work on an empty database (CI).
+DECLARE @admin INT;
 SET @err = NULL;
 BEGIN TRANSACTION;
 BEGIN TRY
+    INSERT dbo.Users (FirstName, LastName, Email, PasswordHash, UserRole) VALUES (N'Verify', N'Admin', N'verify+0006-admin-' + CONVERT(NVARCHAR(36), NEWID()) + N'@example.invalid', N'x', N'Admin');
+    SET @admin = SCOPE_IDENTITY();
     INSERT dbo.Admin_Audit_Events (AdminUserID, Action, EntityType, EntityID) VALUES (@admin, 'verify', 'Test', 1);
     UPDATE dbo.Admin_Audit_Events SET Action = 'changed' WHERE Action = 'verify';
 END TRY
@@ -64,6 +66,8 @@ INSERT @r VALUES (N'Audit events cannot be updated', IIF(@err = 51020, N'PASS', 
 SET @err = NULL;
 BEGIN TRANSACTION;
 BEGIN TRY
+    INSERT dbo.Users (FirstName, LastName, Email, PasswordHash, UserRole) VALUES (N'Verify', N'Admin', N'verify+0006-admin-' + CONVERT(NVARCHAR(36), NEWID()) + N'@example.invalid', N'x', N'Admin');
+    SET @admin = SCOPE_IDENTITY();
     INSERT dbo.Admin_Audit_Events (AdminUserID, Action, EntityType, EntityID) VALUES (@admin, 'verify', 'Test', 1);
     DELETE FROM dbo.Admin_Audit_Events WHERE Action = 'verify';
 END TRY
