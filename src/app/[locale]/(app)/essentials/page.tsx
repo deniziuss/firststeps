@@ -1,3 +1,4 @@
+import { parseId } from "@/lib/ids";
 import { safeHref } from "@/lib/safe-url";
 import { ExternalLinkIcon, GlobeIcon, MapPinnedIcon } from "lucide-react";
 import type { Metadata } from "next";
@@ -21,7 +22,7 @@ export default async function EssentialsPage({ searchParams }: PageProps<"/[loca
   const i18n = await getI18n();
   const { t, locale } = i18n;
   const [journeys, universities] = await Promise.all([listJourneys(user.id), listUniversities()]);
-  const requested = Number((await searchParams).university);
+  const requested = parseId((await searchParams).university);
   const university =
     universities.find((u) => u.UniversityID === requested) ?? universities.find((u) => u.UniversityID === journeys[0]?.UniversityID) ?? universities[0];
 

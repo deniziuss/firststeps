@@ -10,7 +10,6 @@ import type { JourneyTaskView } from "@/server/repositories/tasks";
 export function lockSummary({ t }: Pick<I18n, "t">, task: JourneyTaskView) {
   if (task.unmet.length === 0) return null;
   if (task.unmet.some((u) => u.reason === "missing")) return t("journey.missingFromPlan");
-  if (task.unmet.some((u) => u.reason === "notApplicable")) return t("journey.notInPlan");
   return t("journey.requires", { tasks: task.unmet.map((u) => u.title).join(", ") });
 }
 

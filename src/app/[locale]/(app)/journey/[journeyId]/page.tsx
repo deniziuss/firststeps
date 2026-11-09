@@ -1,3 +1,4 @@
+import { parseId } from "@/lib/ids";
 import { CalendarIcon, FileTextIcon, GraduationCapIcon, ListTodoIcon, MapPinIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -23,8 +24,8 @@ export default async function JourneyPage({ params }: PageProps<"/[locale]/journ
   const user = await requireRole("Student");
   const i18n = await getI18n();
   const { t, format, locale } = i18n;
-  const journeyId = Number((await params).journeyId);
-  const journey = Number.isInteger(journeyId) ? await getJourney(user.id, journeyId) : undefined;
+  const journeyId = parseId((await params).journeyId);
+  const journey = journeyId !== undefined ? await getJourney(user.id, journeyId) : undefined;
   if (!journey) notFound();
 
   const tasks = await listJourneyTasks(journey.JourneyID, locale);

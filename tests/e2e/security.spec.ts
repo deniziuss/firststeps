@@ -174,3 +174,73 @@ test("security headers are sent on every page", async ({ request }) => {
     expect(headers["x-powered-by"], path).toBeUndefined();
   }
 });
+
+test("out-of-range and malformed ids are 'not found', never a server error", async ({ page }) => {
+  const admin = adminCredentials();
+  test.skip(!admin.email, "Run npm run db:seed-users first.");
+  await signIn(page, admin.email, admin.password);
+  for (const path of ["/admin/templates/99999999999", "/admin/templates/1e3", "/admin/templates/0", "/mentor/requests/2147483648"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Page not found" }), path).toBeVisible();
+  }
+  // An overflowing page number falls back to a valid page.
+  await page.goto("/admin/users?page=99999999999");
+  await expect(page.getByRole("heading", { level: 1, name: "Users" })).toBeVisible();
+
+  await signOut(page);
+  await register(page, "Ida", uniqueEmail("sec-ids"));
+  for (const path of ["/tasks/99999999999", "/journey/99999999999", "/journey/99999999999/report", "/tasks/-5"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Page not found" }), path).toBeVisible();
+  }
+});
+
+test("signing out on one device signs the account out on every device (SessionVersion)", async ({ page, browser }) => {
+  const email = uniqueEmail("sec-devices");
+  await register(page, "Dev", email);
+  const laptop = await browser.newContext({ baseURL: BASE_URL });
+  await laptop.addCookies([{ name: "fs_locale", value: "en", url: `${BASE_URL}/` }]);
+  const laptopPage = await laptop.newPage();
+  await signIn(laptopPage, email, PASSWORD);
+  await laptopPage.goto("/dashboard");
+  await expect(laptopPage).toHaveURL(/\/dashboard$/);
+
+  await signOut(page);
+  await expectSignedOut(laptopPage);
+  // Signing in again works and issues a token with the new version.
+  await signIn(page, email, PASSWORD);
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await laptop.close();
+});
+
+test("an admin role or status change ends the user's sessions; saving unchanged values does not", async ({ page, browser }) => {
+  const admin = adminCredentials();
+  test.skip(!admin.email, "Run npm run db:seed-users first.");
+  const email = uniqueEmail("sec-admin-change");
+  await register(page, "Rita", email);
+
+  const adminContext = await browser.newContext({ baseURL: BASE_URL });
+  await adminContext.addCookies([{ name: "fs_locale", value: "en", url: `${BASE_URL}/` }]);
+  const adminPage = await adminContext.newPage();
+  await signIn(adminPage, admin.email, admin.password);
+  await adminPage.goto(`/admin/users?q=${encodeURIComponent(email)}`);
+  await ready(adminPage);
+  const row = adminPage.getByRole("row").filter({ hasText: email });
+
+  await row.getByRole("button", { name: "Save" }).click();
+  await expect(row.getByText("User updated.")).toBeVisible();
+  await page.goto("/dashboard");
+  await expect(page, "an unchanged save keeps the session").toHaveURL(/\/(dashboard|onboarding)$/);
+
+  await row.getByRole("checkbox", { name: "Active" }).uncheck();
+  await row.getByRole("button", { name: "Save" }).click();
+  await expect(row.getByText("User updated.")).toBeVisible();
+  await expectSignedOut(page);
+  // A deactivated account cannot sign in, with the same message as a wrong password.
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await button(page, "Sign in").click();
+  await expect(formAlert(page)).toContainText("Email or password is incorrect.");
+  await adminContext.close();
+});

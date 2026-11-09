@@ -124,6 +124,18 @@ END CATCH;
 IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
 INSERT INTO @Results VALUES (N'UNIQUE blocks duplicate journey task', IIF(@Err IN (2627, 2601), N'PASS', N'FAIL'), COALESCE(LEFT(@Msg, 120), N'Insert was allowed'));
 
+-- 5. Migration 0003: the prerequisite trigger knows template applicability (behaviour is covered
+--    case by case by tests/unit/prerequisite-parity.test.ts, npm run test:db).
+INSERT INTO @Results VALUES (N'Migration 0003: applicability-aware prerequisite trigger',
+    IIF(OBJECT_DEFINITION(OBJECT_ID(N'dbo.trg_JourneyTasks_ValidatePrerequisites')) LIKE N'%AccommodationCondition%', N'PASS', N'FAIL'), N'trg_JourneyTasks_ValidatePrerequisites');
+
+-- 6. Migration 0004: SessionVersion column, default 0 and non-negative check.
+INSERT INTO @Results VALUES (N'Migration 0004: Users.SessionVersion',
+    IIF(COL_LENGTH(N'dbo.Users', N'SessionVersion') IS NOT NULL
+        AND EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_Users_SessionVersion')
+        AND EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Users_SessionVersion'), N'PASS', N'FAIL'),
+    N'column, DF_Users_SessionVersion, CK_Users_SessionVersion');
+
 SELECT Test, Result, Detail FROM @Results;
 SELECT IIF(EXISTS (SELECT 1 FROM dbo.Users WHERE Email LIKE N'verify+%@example.invalid'), N'FAIL: rows left behind', N'Rolled back') AS Cleanup;
 GO

@@ -2,7 +2,7 @@
 
 **Status:**
 - **Data gaps:** fixed in the application.
-- **Prerequisites that do not apply:** a trigger change is proposed and was tested in a rolled-back transaction. It is **not applied** and waits for a product decision.
+- **Prerequisites that do not apply:** fixed by migration 0003, approved and applied to the local `FirstSteps_Dev` on 2026-11-09. The trigger and `unmetPrerequisites` / `checkTransition` follow the same rule; `tests/unit/prerequisite-parity.test.ts` checks both against 9 cases (`npm run test:db` for the SQL side).
 
 **Related objects:**
 - `dbo.trg_JourneyTasks_ValidatePrerequisites`

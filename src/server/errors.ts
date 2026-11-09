@@ -1,3 +1,4 @@
+import { logError } from "./log";
 import type { MessageKey, Translate, Vars } from "@/i18n/translator";
 
 // Errors that are safe to show to the user. They carry a message key and are translated at the
@@ -39,7 +40,7 @@ export function toAppError(error: unknown, uniqueKey: MessageKey = "errors.dupli
   const n = dbErrorNumber(error);
   if (n !== undefined && DB_ERRORS[n]) return DB_ERRORS[n]();
   if (isUniqueViolation(error)) return new AppError(uniqueKey, undefined, "conflict");
-  console.error(error);
+  logError("unexpected_action_error", error);
   return new AppError("errors.generic");
 }
 

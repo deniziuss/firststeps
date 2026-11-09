@@ -201,9 +201,9 @@ export async function updateTaskStatus(userId: number, journeyTaskId: number, st
     if (target.TaskStatus === status) return;
 
     const rows = await journeyTaskRows(target.JourneyID, locale, tx);
-    const { dependencies, titles } = await journeyDependencies(target.JourneyID, locale, tx);
+    const { dependencies, titles, appliesToJourney } = await journeyDependencies(target.JourneyID, locale, tx);
     const states = rows.map((r) => ({ taskId: r.TaskID, status: r.TaskStatus }));
-    const check = checkTransition(target.TaskID, target.TaskStatus, status, states, dependencies);
+    const check = checkTransition(target.TaskID, target.TaskStatus, status, states, dependencies, appliesToJourney);
 
     if (!check.ok && check.code === "prerequisites") {
       throw new AppError("errors.prerequisitesFirst", { tasks: check.unmet.map((u) => titles.get(u.requiredTaskId) ?? "?").join(", ") });

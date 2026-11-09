@@ -1,3 +1,4 @@
+import { parseId } from "@/lib/ids";
 import { ArrowLeftIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -21,8 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ReportPage({ params }: PageProps<"/[locale]/journey/[journeyId]/report">) {
   const user = await requireRole("Student");
   const { t, format, locale } = await getI18n();
-  const journeyId = Number((await params).journeyId);
-  const journey = Number.isInteger(journeyId) ? await getJourney(user.id, journeyId) : undefined;
+  const journeyId = parseId((await params).journeyId);
+  const journey = journeyId !== undefined ? await getJourney(user.id, journeyId) : undefined;
   if (!journey) notFound();
 
   const [tasks, openTasks, requests] = await Promise.all([listJourneyTasks(journey.JourneyID, locale), pendingTaskReport(journey.JourneyID), listStudentRequests(user.id, locale)]);

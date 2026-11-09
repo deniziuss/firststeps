@@ -19,15 +19,16 @@ export const HOME_BY_ROLE: Record<UserRole, string> = {
   Admin: "/admin",
 };
 
-// The session only carries the user id and a password fingerprint. Role and active state are read
-// from the database on every request, so a deactivated or re-assigned account takes effect
-// immediately, and a token issued before the last password change is rejected.
+// The session carries the user id, the session version and a password fingerprint. Every request
+// reads the user row: an inactive account, a different SessionVersion (sign-out, password change,
+// role or status change) or a different password hash all reject the token immediately.
 // cache() is per request only; nothing user-specific is cached across requests.
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const session = await readSession();
   if (!session) return null;
   const user = await findSessionUser(session.userId);
   if (!user || !user.IsActive) return null;
+  if (user.SessionVersion !== session.sv) return null;
   if (passwordFingerprint(user.PasswordHash) !== session.pv) return null;
   return { id: user.UserID, firstName: user.FirstName, lastName: user.LastName, email: user.Email, role: user.UserRole };
 });

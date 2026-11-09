@@ -23,15 +23,23 @@ describe("unmetPrerequisites", () => {
     expect(unmetPrerequisites(2, tasks, deps)).toEqual([{ requiredTaskId: 1, reason: "missing" }]);
   });
 
-  it("matches the DB trigger: a NotApplicable prerequisite blocks", () => {
+  it("treats a NotApplicable prerequisite as satisfied (migration 0003)", () => {
     const tasks = [{ taskId: 1, status: "NotApplicable" as const }, { taskId: 2, status: "Pending" as const }];
-    expect(unmetPrerequisites(2, tasks, deps)).toEqual([{ requiredTaskId: 1, reason: "notApplicable" }]);
+    expect(unmetPrerequisites(2, tasks, deps)).toEqual([]);
   });
 
-  it("separates a prerequisite that does not apply from a data gap", () => {
+  it("separates a prerequisite that does not apply (satisfied) from a data gap (blocks)", () => {
     const tasks = [{ taskId: 2, status: "Pending" as const }];
-    expect(unmetPrerequisites(2, tasks, deps, () => false)).toEqual([{ requiredTaskId: 1, reason: "notApplicable" }]);
+    expect(unmetPrerequisites(2, tasks, deps, () => false)).toEqual([]);
     expect(unmetPrerequisites(2, tasks, deps, () => true)).toEqual([{ requiredTaskId: 1, reason: "missing" }]);
+    // Without applicability information an absent prerequisite stays blocking (safe default).
+    expect(unmetPrerequisites(2, tasks, deps)).toEqual([{ requiredTaskId: 1, reason: "missing" }]);
+  });
+
+  it("lets checkTransition complete a task whose only prerequisite does not apply", () => {
+    const tasks = [{ taskId: 2, status: "Pending" as const }];
+    expect(checkTransition(2, "Pending", "Completed", tasks, deps, () => false)).toEqual({ ok: true });
+    expect(checkTransition(2, "Pending", "Completed", tasks, deps, () => true).ok).toBe(false);
   });
 
   it("does not count a prerequisite in progress", () => {

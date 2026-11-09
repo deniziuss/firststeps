@@ -1,3 +1,4 @@
+import { parseId } from "@/lib/ids";
 import { ArrowLeftIcon, XIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -18,8 +19,8 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/admin/te
   const { t } = await getI18n();
   const generic = { title: t("admin.templates.editTitle") };
   const user = await getCurrentUser();
-  const taskId = Number((await params).taskId);
-  if (user?.role !== "Admin" || !Number.isInteger(taskId)) return generic;
+  const taskId = parseId((await params).taskId);
+  if (user?.role !== "Admin" || taskId === undefined) return generic;
   const template = await getTemplate(taskId);
   return template ? { title: `${template.TaskTitle} · ${t("admin.templates.editTitle")}` } : generic;
 }
@@ -42,8 +43,8 @@ export default async function TemplatePage({ params }: PageProps<"/[locale]/admi
   await requireRole("Admin");
   const i18n = await getI18n();
   const { t, format } = i18n;
-  const taskId = Number((await params).taskId);
-  const template = Number.isInteger(taskId) ? await getTemplate(taskId) : undefined;
+  const taskId = parseId((await params).taskId);
+  const template = taskId !== undefined ? await getTemplate(taskId) : undefined;
   if (!template) notFound();
 
   const [universities, prerequisites, templates, sources] = await Promise.all([

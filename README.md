@@ -18,7 +18,7 @@ Implemented and covered by tests (see [docs/testing.md](docs/testing.md)):
 
 - **Accounts and roles:** student self-registration, sign in and out, Student / Mentor / Admin roles, profile and password change. Passwords are hashed with argon2id; every page and server action checks the role and ownership on the server.
 - **Smart journey builder:** a student creates a journey (university, arrival date, programme, accommodation). Matching task templates become personal tasks, grouped into Before arrival, First days, First week and Settling in.
-- **Task dependency engine:** tasks can require other tasks. Locked tasks explain what they are waiting for, a completed task cannot be reopened while a dependent task is completed, and admins cannot create dependency cycles.
+- **Task dependency engine:** tasks can require other tasks. Locked tasks explain what they are waiting for, a completed task cannot be reopened while a dependent task is completed, and admins cannot create dependency cycles. A prerequisite that does not apply to the student (other programme or housing status, or *Not needed* after a plan change) never locks a task; the database trigger and the application follow the same rule.
 - **Plan updates:** when the accommodation status changes, the journey is re-planned: new tasks are added, tasks that no longer apply are marked *Not applicable*, and completed work is never lost.
 - **Verified information:** tasks link to official sources that show their review status (*Verified*, *Review pending*, *Outdated*) and the date of the last check.
 - **I'm stuck / Buddy Connect:** students open a help request on a task; an admin assigns it to a mentor, who sees only the requests assigned to them and answers asynchronously.
@@ -114,6 +114,7 @@ See [`.env.example`](.env.example). The app refuses to start its database connec
 | `npm run build` | Production build |
 | `npm run test:e2e` | Playwright end-to-end tests against a local production build: student, mentor and admin flows in English and Turkish, language switching, accessibility (needs the local database, seeded users and Microsoft Edge). At the end of a run its own synthetic records are removed; set `E2E_KEEP_DATA=1` to keep them |
 | `npm run db:local:setup` | Includes `database/local/04_verify.sql`: object counts and trigger/procedure behaviour, rolled back |
+| `npm run test:db` | Prerequisite rule parity: the same cases through the SQL trigger (local `FirstSteps_Dev`, rolled back) and the TypeScript engine |
 | `npm run db:cleanup-test-data` | Dry run listing synthetic test records in `FirstSteps_Dev`; `-- --apply` deletes them, `-- --self-test` checks the safety rules (only `e2e+`/`sweep+`… students at `@example.invalid` and inactive `E2E …` templates are ever matched) |
 
 GitHub Actions runs install, typecheck, lint, unit tests and the production build on every push and pull request. Database-backed and end-to-end tests run locally only for now.
@@ -141,7 +142,6 @@ All modules listed above are implemented and tested locally. Current state and o
 
 Known open points:
 
-- Prerequisites that do not apply to a journey still lock the dependent task. A trigger change is proposed and waits for a decision ([docs/issues/001](docs/issues/001-prerequisite-satisfaction.md)). A prerequisite that is missing from a journey because it was added later is already repaired with *Update my plan*.
 - Task and source texts are synthetic drafts; every source is still *Review pending*.
 
 Planned, not yet implemented:

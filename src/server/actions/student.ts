@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { JOURNEY_STATUSES } from "@/domain/statuses";
 import { getActionI18n } from "@/i18n/server";
-import { accommodationSchema, fieldErrors, helpRequestSchema, journeySchema, taskStatusSchema } from "@/lib/validation";
+import { dbId, accommodationSchema, fieldErrors, helpRequestSchema, journeySchema, taskStatusSchema } from "@/lib/validation";
 import { requireRole } from "../dal";
 import { isUniqueViolation, runAction, toAppError, type ActionResult } from "../errors";
 import * as help from "../repositories/help";
@@ -40,7 +40,7 @@ export async function changeAccommodation(_: ActionResult | undefined, formData:
   return { ok: true, message: t("journey.planUpdated", { added: result.data!.added, retired: result.data!.retired, reopened: result.data!.reopened }) };
 }
 
-const refreshPlanSchema = z.object({ journeyId: z.coerce.number().int().positive() });
+const refreshPlanSchema = z.object({ journeyId: dbId });
 
 // Adds tasks that apply to the journey but are missing from it (Issue 001, data gap).
 export async function refreshPlan(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
@@ -54,7 +54,7 @@ export async function refreshPlan(_: ActionResult | undefined, formData: FormDat
   return { ok: true, message: t("journey.planUpdated", { added: result.data!.added, retired: result.data!.retired, reopened: result.data!.reopened }) };
 }
 
-const journeyStatusSchema = z.object({ journeyId: z.coerce.number().int().positive(), status: z.enum(JOURNEY_STATUSES) });
+const journeyStatusSchema = z.object({ journeyId: dbId, status: z.enum(JOURNEY_STATUSES) });
 
 export async function setJourneyStatus(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   const user = await requireRole("Student");
@@ -88,7 +88,7 @@ export async function createHelpRequest(_: ActionResult | undefined, formData: F
   return result.ok ? { ok: true, message: t("help.sent") } : result;
 }
 
-const requestIdSchema = z.object({ requestId: z.coerce.number().int().positive() });
+const requestIdSchema = z.object({ requestId: dbId });
 
 export async function withdrawHelpRequest(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   const user = await requireRole("Student");

@@ -19,7 +19,9 @@ const text = (min: number, max: number, minMessage = required) => z.string().tri
 const name = text(1, 100);
 const email = z.string().trim().toLowerCase().max(255, tooLong).pipe(z.email("validation.email"));
 const password = z.string().min(10, "validation.passwordLength").max(128, "validation.passwordMax");
-const id = z.coerce.number().int().positive();
+// SQL Server INT range: larger values would overflow the driver parameter.
+export const dbId = z.coerce.number().int().positive().max(2_147_483_647);
+const id = dbId;
 const optionalText = (max: number) =>
   z
     .string()

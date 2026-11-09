@@ -1,3 +1,4 @@
+import { parseId } from "@/lib/ids";
 import { safeHref } from "@/lib/safe-url";
 import { ArrowLeftIcon, ExternalLinkIcon, InfoIcon, LanguagesIcon, LockIcon, ShieldQuestionIcon } from "lucide-react";
 import type { Metadata } from "next";
@@ -17,8 +18,8 @@ import { HelpRequestForm, RefreshPlanForm, StatusActions } from "./task-forms";
 export async function generateMetadata({ params }: PageProps<"/[locale]/tasks/[journeyTaskId]">): Promise<Metadata> {
   const user = await requireRole("Student");
   const { t, locale } = await getI18n();
-  const journeyTaskId = Number((await params).journeyTaskId);
-  const task = Number.isInteger(journeyTaskId) ? await getTaskDetail(user.id, journeyTaskId, locale) : undefined;
+  const journeyTaskId = parseId((await params).journeyTaskId);
+  const task = journeyTaskId !== undefined ? await getTaskDetail(user.id, journeyTaskId, locale) : undefined;
   return { title: task?.TaskTitle ?? t("task.whatToDo") };
 }
 
@@ -26,14 +27,13 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
   const user = await requireRole("Student");
   const i18n = await getI18n();
   const { t, format, locale } = i18n;
-  const journeyTaskId = Number((await params).journeyTaskId);
-  const task = Number.isInteger(journeyTaskId) ? await getTaskDetail(user.id, journeyTaskId, locale) : undefined;
+  const journeyTaskId = parseId((await params).journeyTaskId);
+  const task = journeyTaskId !== undefined ? await getTaskDetail(user.id, journeyTaskId, locale) : undefined;
   if (!task) notFound();
 
   const requests = await listStudentRequests(user.id, locale, task.JourneyTaskID);
   const locked = task.unmet.length > 0;
   const missing = task.unmet.some((u) => u.reason === "missing");
-  const unavailable = !missing && task.unmet.some((u) => u.reason === "notApplicable");
   const status = displayStatus(task.TaskStatus, locked);
 
   return (
@@ -158,12 +158,6 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
                   <RefreshPlanForm journeyId={task.JourneyID} />
                 </AlertDescription>
               </Alert>
-            ) : unavailable ? (
-              <Alert className="border-gold/50 bg-gold-soft">
-                <ShieldQuestionIcon aria-hidden />
-                <AlertTitle>{t("task.unavailableTitle")}</AlertTitle>
-                <AlertDescription className="text-foreground">{t("task.unavailableText")}</AlertDescription>
-              </Alert>
             ) : (
               locked && (
                 <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -215,7 +209,7 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
                 ))}
               </ul>
             )}
-            <HelpRequestForm journeyTaskId={task.JourneyTaskID} taskTitle={task.TaskTitle} startOpen={unavailable} />
+            <HelpRequestForm journeyTaskId={task.JourneyTaskID} taskTitle={task.TaskTitle} />
           </Section>
         </div>
       </div>
