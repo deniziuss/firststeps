@@ -81,6 +81,20 @@ Round 4 (`feat/security-infrastructure-readiness`, against `FirstSteps_Test` wit
 - **Outages:** `scripts/probe-outages.mjs` covers email off and database unreachable.
 - **Logs:** `scripts/scan-logs.mjs` finds no emails, hashes, tokens, cookies or secrets in the server logs of a full E2E run and the probes.
 
+Round 5 (`feat/operational-readiness-hardening`, 2026-11-10, against `FirstSteps_Test`):
+
+| Check | Result |
+|---|---|
+| Unit (Vitest) | 102 passed, 10 skipped (the skipped ones need a database and run as `npm run test:db`). New: deployment checks (6), SMTP against a local fake server and email templates (6), metrics (2) |
+| End-to-end | 50 passed, 2 skipped (opt-in screenshots) in each of the two final full runs after the last application change (plus an earlier check run: 49/49). New: metrics need the token and count failed sign-ins without personal data; the data export holds only the signed-in student's data and no secrets; the settings data panel has no overflow at 360 px (TR/EN) and works by keyboard |
+| Accessibility | axe (WCAG 2.2 AA tags) on every student, mentor, admin and public page incl. the new data panel, in English and Turkish, light and dark: 0 violations. No manual screen-reader test was done |
+| Database | `0006_verify` 11/11, `0006_idempotency` 9/9, `0006_rerun_unverified` PASS (old version: FAIL), `04_verify` 12/12, parity 19/19, `verify-0006-security.mjs` with the app login 16/16 |
+| Migrations | All four migrations re-run without errors on a restored copy; CI re-runs all of them plus 0006 |
+| Backup / restore | Backup verified (8.1 MB); restore test PASSED with identical schema fingerprint and equal counts |
+| Operations scripts | Health check: alert with the app down, all `ok` with it up; log rotation, maintenance and anonymisation each tested including their refusals (see `operations.md`, `privacy.md`) |
+| CI | `check` and `database` jobs green, including the new steps (script parsing, migration re-runs, 0006 scenarios, security checks, maintenance, 0005 measurement, metrics/export protection) |
+| Dependency audit | `npm audit --omit=dev`: 0. Full audit: 13 advisories (2 low, 11 moderate), all in dev-only tooling (ESLint plugins, shadcn CLI) |
+| Secret scan | Added lines of the branch diff: only CI variable names (generated and masked per run); no `.env.local`, backups or outbox files tracked |
 Findings and their status: [security.md](security.md).
 
 ## Document title
