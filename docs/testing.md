@@ -67,6 +67,8 @@ Safety rules of the cleanup:
 | Responsive sweep | 360, 390, 768, 1024, 1280, 1920 px × public pages × en/tr × light/dark: no overflow |
 | Dependency audit | `npm audit --omit=dev`: 0 vulnerabilities |
 
+Round 2 (`fix/comprehensive-security-performance`): unit 67/67 (adds trusted-proxy parsing); E2E 33/33 in two consecutive full runs, with a new test that out-of-range and malformed ids are "not found". Database outage behaviour: `scripts/probe-db-down.mjs` against a server with `DB_PORT=1` (the database is not contacted).
+
 Findings and their status: [security.md](security.md).
 
 ## Document title

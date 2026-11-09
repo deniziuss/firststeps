@@ -42,6 +42,11 @@ Typecheck, lint and production build pass · unit 36/36 · E2E 19/19 in two cons
 7. **CI**: database-backed and end-to-end tests run locally only.
 8. **Not yet implemented**: email verification, password reset, audit trail, real-time chat, deployment.
 
+## Security and stabilization (2026-11-09)
+- PR #3 (`fix/stabilization-security-hardening`): session revocation, password-change invalidation, http(s)-only links, CSP and headers, report and admin fixes.
+- `fix/comprehensive-security-performance`: trusted-proxy address fix, INT-range id parsing, translated error boundaries, structured logging, explicit argon2id parameters, CI actions pinned by SHA, performance measurements ([performance.md](performance.md)).
+- Waiting for approval: proposals 0003 (prerequisite rule), 0004 (persistent sessions) and 0005 (indexes). Findings: [security.md](security.md).
+
 ## Working agreement
 - `main` stays green: typecheck, lint, unit tests and build pass before every push; database and E2E tests run locally for changes that touch them.
 - Larger or risky changes go through a feature branch and a pull request; release tags only after approval.
