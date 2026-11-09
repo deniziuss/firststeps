@@ -23,6 +23,9 @@ function connect(): Promise<sql.ConnectionPool> {
       trustServerCertificate: config.DB_TRUST_SERVER_CERT === "true",
     },
     pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
+    // Explicit limits: a stuck query fails with a generic message instead of hanging a request.
+    connectionTimeout: 15000,
+    requestTimeout: 15000,
   });
   return pool.connect().catch((error) => {
     globalForDb.firstStepsPool = undefined;
@@ -75,7 +78,25 @@ export async function procedure<T>(
   return { rows: result.recordset ?? [], output: result.output };
 }
 
+const DEADLOCK_VICTIM = 1205;
+
+function isDeadlock(error: unknown) {
+  const e = error as { number?: number; originalError?: { info?: { number?: number } } } | null;
+  return (e?.number ?? e?.originalError?.info?.number) === DEADLOCK_VICTIM;
+}
+
+// Runs the work in one transaction. If SQL Server chose it as a deadlock victim (1205), the whole
+// transaction was rolled back, so it is safe to run it once more before reporting an error.
 export async function withTransaction<T>(work: (tx: sql.Transaction) => Promise<T>): Promise<T> {
+  try {
+    return await runTransaction(work);
+  } catch (error) {
+    if (!isDeadlock(error)) throw error;
+    return runTransaction(work);
+  }
+}
+
+async function runTransaction<T>(work: (tx: sql.Transaction) => Promise<T>): Promise<T> {
   const tx = new sql.Transaction(await getPool());
   await tx.begin();
   try {

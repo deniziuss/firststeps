@@ -57,6 +57,18 @@ Safety rules of the cleanup:
 | Design captures (`CAPTURE=1 npx playwright test visual`) | Student, mentor, admin and auth screens; skipped in normal runs |
 | Performance (`scripts/perf.mjs`) | See [design-system.md](design-system.md#5-performance) |
 
+## Stabilization and security checks (2026-11-09)
+| Check | Result |
+|---|---|
+| Unit | 64/64, including server-action guard checks and URL safety |
+| End-to-end | 32/32 in two consecutive full runs; 2 opt-in screenshot tests skipped |
+| `security.spec.ts` | Sign-out revocation, password-change invalidation, forged cookies, tampered Server Action requests (cross-student), HTML injection, unsafe link schemes, security headers |
+| Database | `04_verify.sql` 10/10 PASS; proposal 0003 rolled-back test 5/5 PASS |
+| Responsive sweep | 360, 390, 768, 1024, 1280, 1920 px × public pages × en/tr × light/dark: no overflow |
+| Dependency audit | `npm audit --omit=dev`: 0 vulnerabilities |
+
+Findings and their status: [security.md](security.md).
+
 ## Document title
 On dynamic pages Next.js streams metadata, so `<title>` is filled shortly after the first HTML. Measured on the production build: 12–80 ms when warm. Longer gaps only appeared on a cold database (see [database.md](database.md#local-sql-server-express-settings)). The accessibility test waits for the title before running axe.
 

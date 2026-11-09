@@ -18,7 +18,7 @@ import {
   userAdminSchema,
 } from "@/lib/validation";
 import { requireRole } from "../dal";
-import { runAction, toAppError, type ActionResult } from "../errors";
+import { AppError, runAction, toAppError, type ActionResult } from "../errors";
 import * as admin from "../repositories/admin";
 import * as help from "../repositories/help";
 import * as users from "../repositories/users";
@@ -172,7 +172,10 @@ export async function saveUser(_: ActionResult | undefined, formData: FormData):
   if (parsed.data.userId === current.id && (parsed.data.role !== "Admin" || !parsed.data.isActive)) {
     return { ok: false, error: t("admin.users.selfDemote") };
   }
-  const result = await runAction(t, () => users.setUserRoleAndStatus(parsed.data.userId, parsed.data.role, parsed.data.isActive));
+  const result = await runAction(t, async () => {
+    const affected = await users.setUserRoleAndStatus(parsed.data.userId, parsed.data.role, parsed.data.isActive);
+    if (affected === 0) throw new AppError("errors.userNotFound", undefined, "notFound");
+  });
   revalidatePath("/admin/users");
   return result.ok ? { ok: true, message: t("admin.users.saved") } : result;
 }

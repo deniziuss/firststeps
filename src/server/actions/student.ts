@@ -61,7 +61,9 @@ export async function setJourneyStatus(_: ActionResult | undefined, formData: Fo
   const { t } = await getActionI18n();
   const parsed = journeyStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: t("validation.checkFields") };
-  await journeys.setJourneyStatus(user.id, parsed.data.journeyId, parsed.data.status);
+  // The update is scoped to the student's own journey; zero rows means it is not theirs or not there.
+  const affected = await journeys.setJourneyStatus(user.id, parsed.data.journeyId, parsed.data.status);
+  if (affected === 0) return { ok: false, error: t("errors.journeyNotFound") };
   revalidatePath(`/journey/${parsed.data.journeyId}`);
   return { ok: true, message: t("journey.statusSaved") };
 }

@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { USER_ROLES, type UserRole } from "@/domain/statuses";
 import { getI18n } from "@/i18n/server";
 import { requireRole } from "@/server/dal";
-import { listUsers } from "@/server/repositories/users";
+import Link from "next/link";
+import { listUsers, USERS_PAGE_SIZE } from "@/server/repositories/users";
 import { UserForm } from "./user-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,7 +23,17 @@ export default async function UsersPage({ searchParams }: PageProps<"/[locale]/a
   const params = await searchParams;
   const role = USER_ROLES.find((r) => r === params.role) as UserRole | undefined;
   const search = typeof params.q === "string" ? params.q.trim().slice(0, 100) : undefined;
-  const users = await listUsers({ role, search: search || undefined });
+  const requestedPage = Number(typeof params.page === "string" ? params.page : 1);
+  const { rows: users, total, page } = await listUsers({ role, search: search || undefined, page: Number.isInteger(requestedPage) ? requestedPage : 1 });
+  const pages = Math.max(1, Math.ceil(total / USERS_PAGE_SIZE));
+  const pageHref = (target: number) => {
+    const query = new URLSearchParams();
+    if (search) query.set("q", search);
+    if (role) query.set("role", role);
+    if (target > 1) query.set("page", String(target));
+    const text = query.toString();
+    return `/admin/users${text ? `?${text}` : ""}`;
+  };
 
   return (
     <div className="grid gap-8">
@@ -47,6 +58,11 @@ export default async function UsersPage({ searchParams }: PageProps<"/[locale]/a
           {t("admin.users.filter")}
         </Button>
       </form>
+      <p className="text-sm text-muted-foreground" role="status">
+        {total === 0
+          ? t("admin.users.noResults")
+          : t("admin.users.showing", { from: (page - 1) * USERS_PAGE_SIZE + 1, to: Math.min(page * USERS_PAGE_SIZE, total), total })}
+      </p>
       <div className="overflow-x-auto rounded-xl border bg-card">
         <Table>
           <TableHeader>
@@ -74,6 +90,25 @@ export default async function UsersPage({ searchParams }: PageProps<"/[locale]/a
           </TableBody>
         </Table>
       </div>
+      {pages > 1 && (
+        <nav aria-label={t("admin.users.pagination")} className="flex items-center justify-between gap-3">
+          {page > 1 ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={pageHref(page - 1)}>{t("admin.users.previous")}</Link>
+            </Button>
+          ) : (
+            <span />
+          )}
+          <span className="text-sm text-muted-foreground">{t("admin.users.page", { page, pages })}</span>
+          {page < pages ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={pageHref(page + 1)}>{t("admin.users.next")}</Link>
+            </Button>
+          ) : (
+            <span />
+          )}
+        </nav>
+      )}
     </div>
   );
 }

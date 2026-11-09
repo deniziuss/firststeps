@@ -6,16 +6,22 @@ import { SourceStatusBadge } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { getI18n } from "@/i18n/server";
 import { removeDependency } from "@/server/actions/admin";
-import { requireRole } from "@/server/dal";
+import { getCurrentUser, requireRole } from "@/server/dal";
 import { getTemplate, listPrerequisites, listSources, listTemplates } from "@/server/repositories/admin";
 import { listUniversities } from "@/server/repositories/journeys";
 import { SourceStatusForm } from "../../sources/source-status-form";
 import { TemplateForm } from "../template-form";
 import { AddSourceForm, DependencyForm, TranslationForm } from "./template-detail-forms";
 
-export async function generateMetadata(): Promise<Metadata> {
+// Names the template in the title, for admins only (same check as the page).
+export async function generateMetadata({ params }: PageProps<"/[locale]/admin/templates/[taskId]">): Promise<Metadata> {
   const { t } = await getI18n();
-  return { title: t("admin.templates.editTitle") };
+  const generic = { title: t("admin.templates.editTitle") };
+  const user = await getCurrentUser();
+  const taskId = Number((await params).taskId);
+  if (user?.role !== "Admin" || !Number.isInteger(taskId)) return generic;
+  const template = await getTemplate(taskId);
+  return template ? { title: `${template.TaskTitle} · ${t("admin.templates.editTitle")}` } : generic;
 }
 
 function Panel({ id, title, text, children }: { id: string; title: string; text?: string; children: React.ReactNode }) {

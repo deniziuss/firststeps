@@ -1,6 +1,6 @@
 import "server-only";
 import type { UserRole } from "@/domain/statuses";
-import { execute, procedure, query, queryOne, sql } from "../db";
+import { execute, type Params, procedure, query, queryOne, sql } from "../db";
 
 export type UserRecord = {
   UserID: number;
@@ -18,9 +18,16 @@ export function findUserById(userId: number) {
   return queryOne<UserRecord>(`SELECT ${USER_COLUMNS} FROM dbo.Users WHERE UserID = @userId`, { userId: [sql.Int, userId] });
 }
 
+// Only for session checks in dal.ts: the password hash never leaves the server layer.
+export function findSessionUser(userId: number) {
+  return queryOne<UserRecord & { PasswordHash: string }>(`SELECT ${USER_COLUMNS}, PasswordHash FROM dbo.Users WHERE UserID = @userId`, {
+    userId: [sql.Int, userId],
+  });
+}
+
 export function findCredentialsByEmail(email: string) {
-  return queryOne<{ UserID: number; PasswordHash: string; IsActive: boolean }>(
-    "SELECT UserID, PasswordHash, IsActive FROM dbo.Users WHERE Email = @email",
+  return queryOne<{ UserID: number; PasswordHash: string; IsActive: boolean; UserRole: UserRole }>(
+    "SELECT UserID, PasswordHash, IsActive, UserRole FROM dbo.Users WHERE Email = @email",
     { email: [sql.NVarChar(255), email] },
   );
 }
@@ -52,25 +59,37 @@ export function updateProfile(userId: number, firstName: string, lastName: strin
   });
 }
 
-export function updatePasswordHash(userId: number, passwordHash: string) {
+export async function updatePasswordHash(userId: number, passwordHash: string) {
   return execute("UPDATE dbo.Users SET PasswordHash = @passwordHash WHERE UserID = @userId", {
     userId: [sql.Int, userId],
     passwordHash: [sql.NVarChar(255), passwordHash],
   });
 }
 
-// Admin views never select PasswordHash.
-export function listUsers(filter: { role?: UserRole; search?: string }) {
-  return query<UserRecord>(
-    `SELECT ${USER_COLUMNS} FROM dbo.Users
-      WHERE (@role IS NULL OR UserRole = @role)
-        AND (@search IS NULL OR Email LIKE @search OR FirstName LIKE @search OR LastName LIKE @search)
-      ORDER BY CreatedAt DESC`,
-    {
-      role: [sql.NVarChar(20), filter.role ?? null],
-      search: [sql.NVarChar(260), filter.search ? `%${filter.search}%` : null],
-    },
-  );
+// Admin views never select PasswordHash. Paged, because the user table grows with every student.
+// LIKE wildcards typed into the search box are escaped, so "%" or "_" match literally.
+export const USERS_PAGE_SIZE = 50;
+
+export function escapeLike(value: string) {
+  return value.replace(/[!%_[]/g, (char) => `!${char}`);
+}
+
+export async function listUsers(filter: { role?: UserRole; search?: string; page?: number }) {
+  const page = Math.max(1, filter.page ?? 1);
+  const pattern = filter.search ? `%${escapeLike(filter.search)}%` : null;
+  const where = `WHERE (@role IS NULL OR UserRole = @role)
+        AND (@search IS NULL OR Email LIKE @search ESCAPE '!' OR FirstName LIKE @search ESCAPE '!' OR LastName LIKE @search ESCAPE '!')`;
+  const params: Params = {
+    role: [sql.NVarChar(20), filter.role ?? null],
+    search: [sql.NVarChar(260), pattern],
+    offset: [sql.Int, (page - 1) * USERS_PAGE_SIZE],
+    size: [sql.Int, USERS_PAGE_SIZE],
+  };
+  const [rows, total] = await Promise.all([
+    query<UserRecord>(`SELECT ${USER_COLUMNS} FROM dbo.Users ${where} ORDER BY CreatedAt DESC, UserID DESC OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY`, params),
+    queryOne<{ Total: number }>(`SELECT COUNT(*) AS Total FROM dbo.Users ${where}`, params),
+  ]);
+  return { rows, total: total?.Total ?? 0, page };
 }
 
 export function listActiveMentors() {

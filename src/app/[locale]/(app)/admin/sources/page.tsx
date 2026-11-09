@@ -1,3 +1,4 @@
+import { safeHref } from "@/lib/safe-url";
 import { BookOpenCheckIcon, ExternalLinkIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -44,8 +45,8 @@ export default async function SourcesPage() {
                 <TableRow key={s.SourceID}>
                   <TableCell className="min-w-56 whitespace-normal">
                     <p className="font-medium">{s.SourceTitle}</p>
-                    {s.SourceURL && (
-                      <a href={s.SourceURL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs break-all underline decoration-gold/60 underline-offset-4">
+                    {safeHref(s.SourceURL) && (
+                      <a href={safeHref(s.SourceURL)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs break-all underline decoration-gold/60 underline-offset-4">
                         {s.SourceURL} <ExternalLinkIcon className="size-3" aria-hidden />
                         <span className="sr-only">({t("common.externalLink")})</span>
                       </a>
