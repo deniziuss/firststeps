@@ -32,7 +32,7 @@ for (const colorScheme of ["light", "dark"] as const) {
 
     test("public pages in both languages", async ({ page }) => {
       for (const prefix of ["/en", "/tr"]) {
-        for (const path of ["", "/sign-in", "/register"]) {
+        for (const path of ["", "/sign-in", "/register", "/forgot-password", `/reset-password/${"A".repeat(43)}`, `/verify-email/${"A".repeat(43)}`]) {
           await page.goto(`${prefix}${path}`);
           if (path === "") await settleMotion(page);
           await audit(page, `${prefix}${path || "/"}`);
@@ -68,7 +68,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       test.skip(!admin.email, "Run npm run db:seed-users first.");
       await signIn(page, admin.email, admin.password);
       for (const prefix of ["/en", "/tr"]) {
-        for (const path of ["/admin", "/admin/requests", "/admin/templates", "/admin/templates/1", "/admin/sources", "/admin/universities", "/admin/users", "/admin/reports", "/settings"]) {
+        for (const path of ["/admin", "/admin/requests", "/admin/templates", "/admin/templates/1", "/admin/sources", "/admin/universities", "/admin/users", "/admin/reports", "/admin/audit", "/settings"]) {
           await page.goto(`${prefix}${path}`);
           await audit(page, `${prefix}${path}`);
         }

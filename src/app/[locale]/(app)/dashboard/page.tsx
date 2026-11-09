@@ -4,6 +4,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader, Section } from "@/components/page";
 import { displayStatus, TaskStatusBadge } from "@/components/status";
 import { Button } from "@/components/ui/button";
+import { VerifyBanner } from "@/components/verify-banner";
 import { Progress } from "@/components/ui/progress";
 import { summarizeProgress } from "@/domain/progress";
 import { JOURNEY_STAGES } from "@/domain/statuses";
@@ -26,10 +27,13 @@ export default async function DashboardPage() {
   const [journeys, requests] = await Promise.all([listJourneys(user.id), listStudentRequests(user.id, locale)]);
   const journey = journeys.find((j) => j.JourneyStatus === "Planning" || j.JourneyStatus === "Active") ?? journeys[0];
 
+  const banner = user.emailVerified ? null : <VerifyBanner email={user.email} />;
+
   if (!journey) {
     return (
       <div className="grid gap-8">
         <PageHeader title={t("dashboard.greeting", { name: user.firstName })} />
+        {banner}
         <EmptyState icon={CompassIcon} title={t("dashboard.startTitle")}>
           <p>{t("dashboard.startText")}</p>
           <Button asChild size="lg" className="mt-5">
@@ -54,6 +58,7 @@ export default async function DashboardPage() {
         title={t("dashboard.greeting", { name: user.firstName })}
         description={t("dashboard.context", { university: journey.UniversityName, city: journey.City, date: format.date(journey.ArrivalDate) })}
       />
+      {banner}
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <section aria-labelledby="next-step" className="dark shape-cut relative flex flex-col gap-4 overflow-hidden bg-hero p-6 text-foreground sm:p-9">

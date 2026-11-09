@@ -178,6 +178,7 @@ export function createSource(input: { taskId: number; sourceTitle: string; sourc
         tx,
       );
     }
+    return row!.SourceID;
   });
 }
 
@@ -192,13 +193,15 @@ export async function setSourceStatus(sourceId: number, status: SourceStatus) {
   if (affected === 0) throw new AppError("errors.sourceNotFound", undefined, "notFound");
 }
 
-export function deleteSource(sourceId: number) {
-  return execute("DELETE FROM dbo.Information_Sources WHERE SourceID = @sourceId", { sourceId: [sql.Int, sourceId] });
+export async function deleteSource(sourceId: number) {
+  const affected = await execute("DELETE FROM dbo.Information_Sources WHERE SourceID = @sourceId", { sourceId: [sql.Int, sourceId] });
+  if (affected === 0) throw new AppError("errors.sourceNotFound", undefined, "notFound");
 }
 
-export function createUniversity(input: { universityName: string; city: string; country: string; countryCode: string; website: string | null }) {
-  return execute(
-    "INSERT INTO dbo.Universities (UniversityName, City, Country, CountryCode, Website) VALUES (@name, @city, @country, @code, @website)",
+export async function createUniversity(input: { universityName: string; city: string; country: string; countryCode: string; website: string | null }) {
+  const row = await queryOne<{ UniversityID: number }>(
+    `INSERT INTO dbo.Universities (UniversityName, City, Country, CountryCode, Website) VALUES (@name, @city, @country, @code, @website);
+     SELECT CONVERT(INT, SCOPE_IDENTITY()) AS UniversityID;`,
     {
       name: [sql.NVarChar(200), input.universityName],
       city: [sql.NVarChar(100), input.city],
@@ -207,6 +210,7 @@ export function createUniversity(input: { universityName: string; city: string; 
       website: [sql.NVarChar(500), input.website],
     },
   );
+  return row!.UniversityID;
 }
 
 export async function updateUniversity(universityId: number, input: { universityName: string; city: string; country: string; countryCode: string; website: string | null }) {

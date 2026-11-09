@@ -49,6 +49,10 @@ Prisma is compatible, but lost defaults on introspection, error numbers only as 
 - Ids from URLs and forms are parsed with `lib/ids.ts` (SQL INT range); out-of-range values are "not found".
 - Errors: translated error boundaries (`error.tsx`, `global-error.tsx`); unexpected server errors are logged as one JSON line by `server/log.ts` (no secrets, emails masked).
 - Security headers and CSP: `next.config.ts`; details in [security.md](security.md).
+- Rate limits: SQL Server buckets (`server/rateLimit.ts`, policy in `server/authLimits.ts`); keys are HMACs, so no email or IP is stored.
+- Account tokens: `server/repositories/tokens.ts` (hashed, single-use); email delivery behind `server/mail.ts` (development outbox; real transport pending approval). See [email.md](email.md).
+- Admin audit: `server/audit.ts`. `audited()` writes the change and its event in one transaction; `db.ts` keeps the transaction in AsyncLocalStorage, so repository calls inside join it.
+- Operations: `/api/health`, `/api/ready`, request ids from the proxy, structured logs (`server/log.ts`), production configuration checks (`DEPLOYMENT=public` in `server/env.ts`). See [operations.md](operations.md).
 - Security headers: `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`; `X-Powered-By` disabled.
 
 ### Journey engine rules (`src/domain`)

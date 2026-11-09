@@ -12,6 +12,7 @@ import {
   ListChecksIcon,
   MapPinnedIcon,
   MenuIcon,
+  ScrollTextIcon,
   SettingsIcon,
   UsersIcon,
 } from "lucide-react";
@@ -38,6 +39,7 @@ const ICONS = {
   sources: BookOpenCheckIcon,
   users: UsersIcon,
   reports: BarChart3Icon,
+  audit: ScrollTextIcon,
 };
 
 type NavItem = { href: string; label: MessageKey; icon: keyof typeof ICONS };
@@ -62,6 +64,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { href: "/admin/universities", label: "nav.adminUniversities", icon: "universities" },
     { href: "/admin/users", label: "nav.adminUsers", icon: "users" },
     { href: "/admin/reports", label: "nav.adminReports", icon: "reports" },
+    { href: "/admin/audit", label: "nav.adminAudit", icon: "audit" },
     { href: "/settings", label: "nav.settings", icon: "settings" },
   ],
 };

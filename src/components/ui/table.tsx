@@ -5,9 +5,12 @@ import { cn } from "cn"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
+    // Focusable so keyboard users can scroll a table that is wider than a phone screen
+    // (WCAG 2.1.1; axe "scrollable-region-focusable").
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      tabIndex={0}
+      className="relative w-full overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       <table
         data-slot="table"

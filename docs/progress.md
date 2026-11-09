@@ -47,6 +47,20 @@ Typecheck, lint and production build pass · unit 36/36 · E2E 19/19 in two cons
 - `fix/comprehensive-security-performance`: trusted-proxy address fix, INT-range id parsing, translated error boundaries, structured logging, explicit argon2id parameters, CI actions pinned by SHA, performance measurements ([performance.md](performance.md)).
 - Waiting for approval: proposals 0003 (prerequisite rule), 0004 (persistent sessions) and 0005 (indexes). Findings: [security.md](security.md).
 
+## Security infrastructure (2026-11-09, `feat/security-infrastructure-readiness`)
+- **Implemented:**
+  - persistent SQL rate limits;
+  - email verification and password reset (development outbox);
+  - append-only admin audit log with an admin page;
+  - health and readiness endpoints, request ids and structured logs;
+  - production configuration checks;
+  - backup status, retention and restore tests;
+  - a CI job with a disposable SQL Server.
+- **Waiting for approval:**
+  - proposal 0006 for `FirstSteps_Dev`;
+  - the Windows backup schedule;
+  - a real email provider.
+
 ## Working agreement
 - `main` stays green: typecheck, lint, unit tests and build pass before every push; database and E2E tests run locally for changes that touch them.
 - Larger or risky changes go through a feature branch and a pull request; release tags only after approval.

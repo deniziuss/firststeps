@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 // Every server action can be called directly with any form data, so each exported action must check
 // the session itself before doing anything. This guards against a new action that forgets it.
-const PUBLIC_ACTIONS = new Set(["auth.ts:register", "auth.ts:signIn", "auth.ts:signOut"]);
+// Public by design: they work without a session (the reset and verification ones are authorised by a
+// single-use token instead).
+const PUBLIC_ACTIONS = new Set(["auth.ts:register", "auth.ts:signIn", "auth.ts:signOut", "auth.ts:requestPasswordReset", "auth.ts:resetPassword", "auth.ts:confirmEmail"]);
 const dir = path.resolve("src/server/actions");
 
 describe("server actions", () => {

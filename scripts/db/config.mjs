@@ -1,7 +1,9 @@
 // Shared connection settings for the database scripts. Local SQL Server only.
 // Values come from .env.local (loaded with `node --env-file`). Never print the password.
 
-export const LOCAL_DB_NAME = "FirstSteps_Dev";
+// FirstSteps_Dev (developer data) or FirstSteps_Test (disposable restored copy / CI database).
+export const ALLOWED_DB_NAMES = ["FirstSteps_Dev", "FirstSteps_Test"];
+export const LOCAL_DB_NAME = process.env.DB_NAME ?? "FirstSteps_Dev";
 const LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1"];
 const REQUIRED = ["DB_SERVER", "DB_NAME", "DB_USER", "DB_PASSWORD"];
 
@@ -13,8 +15,8 @@ export function loadDbConfig() {
   if (!LOCAL_HOSTS.includes(process.env.DB_SERVER.toLowerCase())) {
     throw new Error("DB_SERVER must be a local address. Remote servers are not allowed.");
   }
-  if (process.env.DB_NAME !== LOCAL_DB_NAME) {
-    throw new Error(`DB_NAME must be ${LOCAL_DB_NAME}.`);
+  if (!ALLOWED_DB_NAMES.includes(process.env.DB_NAME)) {
+    throw new Error(`DB_NAME must be one of ${ALLOWED_DB_NAMES.join(", ")}.`);
   }
 
   return {

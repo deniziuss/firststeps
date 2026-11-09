@@ -1,8 +1,8 @@
 -- Local development only: Turkish translations for the synthetic pilot content (02_seed_content.sql).
 -- Rows are matched by the English title and inserted only when missing. Idempotent.
-USE [FirstSteps_Dev];
+-- Run with -d FirstSteps_Dev (local) or -d FirstSteps_Test (disposable copy, CI).
 GO
-IF DB_NAME() <> N'FirstSteps_Dev' THROW 51000, 'Wrong database selected.', 1;
+IF DB_NAME() NOT IN (N'FirstSteps_Dev', N'FirstSteps_Test') THROW 51000, 'Wrong database selected.', 1;
 GO
 SET NOCOUNT ON;
 

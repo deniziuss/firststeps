@@ -71,6 +71,9 @@ export function Field({
   const { t } = useI18n();
   const id = `${name}-${useId()}`;
   const errors = state && !state.ok ? state.fieldErrors?.[name] : undefined;
+  // After a failed submission React resets the form; the action echoes non-secret values back, and the
+  // control is re-created with them so the user does not have to type everything again.
+  const kept = state && !state.ok ? state.values?.[name] : undefined;
   const describedBy = [hint ? `${id}-hint` : null, errors ? `${id}-error` : null].filter(Boolean).join(" ") || undefined;
   const control = Children.only(children);
 
@@ -80,7 +83,15 @@ export function Field({
         {label}
         {optional && <span className="font-normal text-muted-foreground"> ({t("common.optional")})</span>}
       </Label>
-      {isValidElement(control) ? cloneElement(control, { id, name, "aria-describedby": describedBy, "aria-invalid": errors ? true : undefined }) : control}
+      {isValidElement(control)
+        ? cloneElement(control, {
+            id,
+            name,
+            "aria-describedby": describedBy,
+            "aria-invalid": errors ? true : undefined,
+            ...(kept !== undefined ? { defaultValue: kept, key: `${id}:${kept}` } : {}),
+          })
+        : control}
       {hint && (
         <p id={`${id}-hint`} className="text-sm text-muted-foreground">
           {hint}

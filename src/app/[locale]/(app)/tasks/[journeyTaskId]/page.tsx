@@ -209,7 +209,11 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
                 ))}
               </ul>
             )}
-            <HelpRequestForm journeyTaskId={task.JourneyTaskID} taskTitle={task.TaskTitle} />
+            {user.emailVerified ? (
+              <HelpRequestForm journeyTaskId={task.JourneyTaskID} taskTitle={task.TaskTitle} />
+            ) : (
+              <p className="shape-cut-sm border border-ochre/50 bg-gold-soft p-4 text-sm">{t("help.verifyFirst")}</p>
+            )}
           </Section>
         </div>
       </div>

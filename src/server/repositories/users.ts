@@ -20,7 +20,7 @@ export function findUserById(userId: number) {
 
 // Only for session checks in dal.ts: the password hash never leaves the server layer.
 export function findSessionUser(userId: number) {
-  return queryOne<UserRecord & { PasswordHash: string; SessionVersion: number }>(`SELECT ${USER_COLUMNS}, PasswordHash, SessionVersion FROM dbo.Users WHERE UserID = @userId`, {
+  return queryOne<UserRecord & { PasswordHash: string; SessionVersion: number; EmailVerifiedAt: Date | null }>(`SELECT ${USER_COLUMNS}, PasswordHash, SessionVersion, EmailVerifiedAt FROM dbo.Users WHERE UserID = @userId`, {
     userId: [sql.Int, userId],
   });
 }
@@ -30,6 +30,38 @@ export function findCredentialsByEmail(email: string) {
     "SELECT UserID, PasswordHash, IsActive, UserRole, SessionVersion FROM dbo.Users WHERE Email = @email",
     { email: [sql.NVarChar(255), email] },
   );
+}
+
+/** Active account for a password-reset request (no hash, no personal data beyond the id). */
+export function findActiveUserIdByEmail(email: string) {
+  return queryOne<{ UserID: number }>("SELECT UserID FROM dbo.Users WHERE Email = @email AND IsActive = 1", { email: [sql.NVarChar(255), email] });
+}
+
+/** Contact data for sending an account email to a signed-in or token-identified user. */
+export function findMailRecipient(userId: number) {
+  return queryOne<{ Email: string; FirstName: string; EmailVerifiedAt: Date | null }>(
+    "SELECT Email, FirstName, EmailVerifiedAt FROM dbo.Users WHERE UserID = @userId AND IsActive = 1",
+    { userId: [sql.Int, userId] },
+  );
+}
+
+export function markEmailVerified(userId: number) {
+  return execute("UPDATE dbo.Users SET EmailVerifiedAt = COALESCE(EmailVerifiedAt, SYSUTCDATETIME()) WHERE UserID = @userId", { userId: [sql.Int, userId] });
+}
+
+/**
+ * Password reset: new hash, every session ended (SessionVersion + 1), and the email counts as verified
+ * (the user just proved access to it). Returns false for an inactive or unknown account.
+ */
+export async function resetPassword(userId: number, passwordHash: string) {
+  const affected = await execute(
+    `UPDATE dbo.Users
+        SET PasswordHash = @passwordHash, SessionVersion = SessionVersion + 1,
+            EmailVerifiedAt = COALESCE(EmailVerifiedAt, SYSUTCDATETIME())
+      WHERE UserID = @userId AND IsActive = 1`,
+    { userId: [sql.Int, userId], passwordHash: [sql.NVarChar(255), passwordHash] },
+  );
+  return affected > 0;
 }
 
 export function findPasswordHash(userId: number) {

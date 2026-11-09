@@ -94,6 +94,52 @@ Status labels: **Fixed and verified**, **Verified, no issue found**, **Open issu
 - `prerequisite-rule.spec.ts`: never-added prerequisite; housing change.
 - `scripts/test-session-restart.mjs`: a revoked cookie is rejected after a restart, and a later session survives it.
 
+## Round 4: security infrastructure (branch `feat/security-infrastructure-readiness`)
+
+All new tables are in **proposal 0006** (`database/proposals/0006_security_infrastructure.sql`, rollback `database/rollbacks/0006_rollback.sql`).
+- **Tested on:** `FirstSteps_Test`, a restored copy of a verified `FirstSteps_Dev` backup, and in the CI SQL Server container.
+- **Not applied** to `FirstSteps_Dev`: **Prepared, awaiting approval**.
+- The application code on this branch needs 0006, so until it is approved the branch runs against `FirstSteps_Test` (`DB_NAME=FirstSteps_Test`).
+
+| ID | Area | Before | Now | Evidence | Status |
+|---|---|---|---|---|---|
+| SEC-06 / SEC-01 follow-up | Rate limiting | In process memory: lost on restart, separate per instance, unbounded per key | SQL Server buckets (`dbo.Rate_Limit_Buckets`, `usp_RateLimit_Hit` with UPDLOCK + HOLDLOCK). Keys are HMACs, so no email or IP is stored. Expired rows are purged. Only failed sign-ins count, in three buckets (see below) | `account-security.spec.ts` (limit, unaffected neighbour), `0006_verify.sql` (window, peek, purge), `test-session-restart.mjs` (limit survives a restart) | Implemented and verified |
+| SEC-17a | Email verification | None | Hashed single-use tokens, POST confirmation, resend limit; help requests need a verified address (server-side) | `account-security.spec.ts` test 1, TR flow in `i18n.spec.ts` | Implemented and verified |
+| SEC-17b | Password reset | None | Generic answer, 30-minute single-use link, `SessionVersion` + 1 ends every session, links built from `APP_URL` | `account-security.spec.ts` test 2 | Implemented and verified |
+| SEC-21 | Admin audit trail | None | `dbo.Admin_Audit_Events`, written in the **same transaction** as each change. UPDATE is refused (51020); DELETE only via `usp_AdminAudit_Purge`, which keeps at least 365 days (51021–51023). Read-only, filterable and paged admin page | `account-security.spec.ts` test 4, `0006_verify.sql` | Implemented and verified |
+| OPS-01 | Health | None | `/api/health` and `/api/ready` (no details) | `account-security.spec.ts` test 5, CI readiness step | Implemented and verified |
+| OPS-02 | Logging | Unstructured errors only | Categorised JSON lines with `requestId`, redaction, slow-query warning, DB connection failure, auth and admin events | Unit-level review; lines observed in the E2E server output | Implemented but not fully tested (no automated assertion on log content) |
+| OPS-03 | Configuration | Local checks only | `DEPLOYMENT=public` refuses http `APP_URL`, the mail outbox, an unencrypted or unvalidated DB connection, and a missing trusted proxy | `env.test.ts` | Implemented and verified |
+| OPS-04 | Backup and restore | Backup with VERIFYONLY | Plus status file, retention for a dedicated folder, restore test into a separate database with `CHECKDB` and count comparison | Run 2026-11-09 | Implemented and verified (schedule awaiting approval) |
+| FUN-06 | Forms | **Correction to REL-03 (round 2):** the claim that sign-in and registration "keep their values" on a database error was not verified, and it was false. React 19 resets a form after every submission, so registration cleared all fields (found by `probe-outages.mjs`) | Failed actions echo non-secret fields (`keptValues`) and `Field` re-creates the input with them; passwords are never echoed | `account-security.spec.ts` › "a failed registration keeps what the student typed", outage probe | Implemented and verified |
+| A11Y-01 | Tables on phones | Admin tables that scroll sideways on a 360 px screen could not be scrolled with the keyboard (axe `scrollable-region-focusable`, found by the new phone tests) | The table container is focusable and shows a focus ring | `account-screens.spec.ts` | Implemented and verified |
+| CI-01 | Database tests in CI | None | Disposable SQL Server 2022 container per run (generated, masked passwords): migrations, seeds, `04_verify`, `0006_verify`, SQL/TS parity, app readiness with the least-privilege login | CI run on the PR | See test results |
+
+**Rate-limit policy** (`src/server/authLimits.ts`):
+
+| Operation | Buckets |
+|---|---|
+| Sign-in (failures only) | client+account 5 / 15 min; client 30 / 15 min; account 50 / hour |
+| Registration | address 3 / hour; client 10 / hour |
+| Reset request | address 3 / hour; client 10 / hour |
+| Reset submit | client 20 / 15 min |
+| Verification resend | account 3 / hour |
+| Password change | account 5 / 15 min |
+
+- **Client buckets** exist only behind a trusted proxy (`TRUST_PROXY=true`, required when `DEPLOYMENT=public`).
+- **Lock-out of a known address:** one client can only block its own client+account pair. Blocking the account for everyone takes 50 failures from at least 10 different addresses within an hour.
+- **Without a proxy** (local use), the pair acts per account. This is the remaining part of SEC-06: **Open issue for any deployment without a trusted proxy**, which public mode refuses.
+
+**Audit coverage:**
+- user role/status changes;
+- university create/update;
+- task create/update/translation;
+- prerequisite add/remove;
+- source add/status/delete;
+- mentor assignment.
+
+Details hold ids, enum values and content titles only; keys that look like emails, passwords, tokens or sessions are dropped. Students and mentors are redirected away from `/admin/audit`.
+
 ## Proposal still pending
 
 | File | Change | Data impact | Rollback |
