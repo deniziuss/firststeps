@@ -5,17 +5,20 @@ export type JourneyTaskState = { taskId: number; status: TaskStatus };
 
 export type UnmetPrerequisite = {
   requiredTaskId: number;
-  // "open": still to do in this journey.
-  // "notApplicable": does not apply to this journey (NotApplicable row, or a template that does not
-  //   match the journey profile). Under the current DB trigger the dependent task stays locked (Issue 001).
-  // "missing": applies to the journey but has no journey task (a data gap, e.g. a template added
+  // "open": the prerequisite is in this journey but not completed yet.
+  // "missing": it applies to the journey but has no journey task (a data gap, e.g. a template added
   //   after the journey was created). Re-planning the journey adds it.
-  reason: "open" | "notApplicable" | "missing";
+  reason: "open" | "missing";
 };
 
-// Mirrors dbo.trg_JourneyTasks_ValidatePrerequisites: every prerequisite must exist in the same
-// journey with status Completed. `appliesToJourney` only refines the reason for a prerequisite
-// without a journey task; without it such a prerequisite is reported as "missing".
+// Same rule as dbo.trg_JourneyTasks_ValidatePrerequisites (migration 0003). A prerequisite is satisfied when
+//   1. its journey task is Completed, or
+//   2. its journey task is NotApplicable, or
+//   3. it has no journey task and its template does not apply to this journey.
+// It blocks when it has a journey task that is not done ("open"), or when it has none although its
+// template applies ("missing"). `appliesToJourney` decides case 3; without it an absent prerequisite
+// is treated as missing (the safe default). tests/unit/prerequisite-parity.test.ts checks this
+// function and the trigger against the same cases.
 export function unmetPrerequisites(
   taskId: number,
   journeyTasks: JourneyTaskState[],
@@ -28,11 +31,11 @@ export function unmetPrerequisites(
     .flatMap((d): UnmetPrerequisite[] => {
       const status = statusByTask.get(d.requiredTaskId);
       if (status === "Completed") return [];
+      if (status === "NotApplicable") return [];
       if (status === undefined) {
-        const reason = appliesToJourney && !appliesToJourney(d.requiredTaskId) ? "notApplicable" : "missing";
-        return [{ requiredTaskId: d.requiredTaskId, reason }];
+        if (appliesToJourney && !appliesToJourney(d.requiredTaskId)) return [];
+        return [{ requiredTaskId: d.requiredTaskId, reason: "missing" }];
       }
-      if (status === "NotApplicable") return [{ requiredTaskId: d.requiredTaskId, reason: "notApplicable" }];
       return [{ requiredTaskId: d.requiredTaskId, reason: "open" }];
     });
 }
@@ -52,9 +55,10 @@ export function checkTransition(
   to: TaskStatus,
   journeyTasks: JourneyTaskState[],
   dependencies: Dependency[],
+  appliesToJourney?: (taskId: number) => boolean,
 ): TransitionCheck {
   if (to === "Completed" && from !== "Completed") {
-    const unmet = unmetPrerequisites(taskId, journeyTasks, dependencies);
+    const unmet = unmetPrerequisites(taskId, journeyTasks, dependencies, appliesToJourney);
     if (unmet.length > 0) return { ok: false, code: "prerequisites", unmet };
   }
   if (from === "Completed" && to !== "Completed") {

@@ -34,7 +34,6 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
   const requests = await listStudentRequests(user.id, locale, task.JourneyTaskID);
   const locked = task.unmet.length > 0;
   const missing = task.unmet.some((u) => u.reason === "missing");
-  const unavailable = !missing && task.unmet.some((u) => u.reason === "notApplicable");
   const status = displayStatus(task.TaskStatus, locked);
 
   return (
@@ -159,12 +158,6 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
                   <RefreshPlanForm journeyId={task.JourneyID} />
                 </AlertDescription>
               </Alert>
-            ) : unavailable ? (
-              <Alert className="border-gold/50 bg-gold-soft">
-                <ShieldQuestionIcon aria-hidden />
-                <AlertTitle>{t("task.unavailableTitle")}</AlertTitle>
-                <AlertDescription className="text-foreground">{t("task.unavailableText")}</AlertDescription>
-              </Alert>
             ) : (
               locked && (
                 <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -216,7 +209,7 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
                 ))}
               </ul>
             )}
-            <HelpRequestForm journeyTaskId={task.JourneyTaskID} taskTitle={task.TaskTitle} startOpen={unavailable} />
+            <HelpRequestForm journeyTaskId={task.JourneyTaskID} taskTitle={task.TaskTitle} />
           </Section>
         </div>
       </div>
