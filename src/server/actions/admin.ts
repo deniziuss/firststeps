@@ -18,6 +18,7 @@ import {
   universitySchema,
   userAdminSchema,
 } from "@/lib/validation";
+import { audited } from "../audit";
 import { requireRole } from "../dal";
 import { AppError, runAction, toAppError, type ActionResult } from "../errors";
 import * as admin from "../repositories/admin";
@@ -31,7 +32,7 @@ function invalid({ t, has }: I18n, error: z.ZodError): ActionResult {
 }
 
 export async function saveTemplate(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
-  await requireRole("Admin");
+  const current = await requireRole("Admin");
   const i18n = await getActionI18n();
   const taskId = id.optional().safeParse(formData.get("taskId") || undefined);
   const parsed = templateSchema.safeParse(Object.fromEntries(formData));
@@ -40,8 +41,10 @@ export async function saveTemplate(_: ActionResult | undefined, formData: FormDa
 
   let newId: number | undefined;
   try {
-    if (taskId.data) await admin.updateTemplate(taskId.data, parsed.data);
-    else newId = await admin.createTemplate(parsed.data);
+    const details = { title: parsed.data.taskTitle, stage: parsed.data.journeyStage, active: parsed.data.isActive };
+    const existing = taskId.data;
+    if (existing) await audited(current.id, { action: "template_update", entityType: "TaskTemplate", entityId: existing, details }, () => admin.updateTemplate(existing, parsed.data));
+    else newId = await audited(current.id, { action: "template_create", entityType: "TaskTemplate", entityId: (created) => created, details }, () => admin.createTemplate(parsed.data));
   } catch (error) {
     const appError = toAppError(error);
     return { ok: false, error: i18n.t(appError.key, appError.vars) };
@@ -52,11 +55,15 @@ export async function saveTemplate(_: ActionResult | undefined, formData: FormDa
 }
 
 export async function saveTemplateTranslation(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
-  await requireRole("Admin");
+  const current = await requireRole("Admin");
   const i18n = await getActionI18n();
   const parsed = templateTranslationSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return invalid(i18n, parsed.error);
-  const result = await runAction(i18n.t, () => admin.saveTemplateTranslation(parsed.data.taskId, parsed.data.taskTitle, parsed.data.description));
+  const result = await runAction(i18n.t, () =>
+    audited(current.id, { action: "template_translation", entityType: "TaskTemplate", entityId: parsed.data.taskId, details: { language: "tr" } }, () =>
+      admin.saveTemplateTranslation(parsed.data.taskId, parsed.data.taskTitle, parsed.data.description),
+    ),
+  );
   revalidatePath("/", "layout");
   return result.ok ? { ok: true, message: i18n.t("admin.templates.translationSaved") } : result;
 }
@@ -68,7 +75,7 @@ function gapText({ t }: I18n, gap: ApplicabilityGap) {
 }
 
 export async function addDependency(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
-  await requireRole("Admin");
+  const current = await requireRole("Admin");
   const i18n = await getActionI18n();
   const { t } = i18n;
   const parsed = dependencySchema.safeParse(Object.fromEntries(formData));
@@ -95,25 +102,40 @@ export async function addDependency(_: ActionResult | undefined, formData: FormD
     };
   }
 
-  const result = await runAction(t, () => admin.addDependency(taskId, requiredTaskId), "admin.templates.dependencyExists");
+  const result = await runAction(
+    t,
+    () =>
+      audited(current.id, { action: "dependency_add", entityType: "Dependency", entityId: taskId, details: { taskId, requiredTaskId, acknowledgedGaps: gaps.length > 0 } }, () =>
+        admin.addDependency(taskId, requiredTaskId),
+      ),
+    "admin.templates.dependencyExists",
+  );
   revalidatePath(`/admin/templates/${taskId}`);
   return result.ok ? { ok: true, message: t("admin.templates.prereqAdded") } : result;
 }
 
 export async function removeDependency(formData: FormData) {
-  await requireRole("Admin");
+  const current = await requireRole("Admin");
   const parsed = dependencySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
-  await admin.removeDependency(parsed.data.taskId, parsed.data.requiredTaskId);
+  const { taskId, requiredTaskId } = parsed.data;
+  // Nothing removed (already gone): no audit event.
+  await audited(current.id, { action: "dependency_remove", entityType: "Dependency", entityId: taskId, details: { taskId, requiredTaskId } }, async () => {
+    if ((await admin.removeDependency(taskId, requiredTaskId)) === 0) throw new AppError("errors.templateNotFound", undefined, "notFound");
+  }).catch(() => undefined);
   revalidatePath(`/admin/templates/${parsed.data.taskId}`);
 }
 
 export async function addSource(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
-  await requireRole("Admin");
+  const current = await requireRole("Admin");
   const i18n = await getActionI18n();
   const parsed = sourceSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return invalid(i18n, parsed.error);
-  const result = await runAction(i18n.t, () => admin.createSource(parsed.data));
+  const result = await runAction(i18n.t, () =>
+    audited(current.id, { action: "source_add", entityType: "InformationSource", entityId: (created) => created, details: { taskId: parsed.data.taskId, status: parsed.data.sourceStatus } }, () =>
+      admin.createSource(parsed.data),
+    ),
+  );
   revalidatePath("/", "layout");
   return result.ok ? { ok: true, message: i18n.t("admin.sources.added") } : result;
 }
@@ -121,23 +143,26 @@ export async function addSource(_: ActionResult | undefined, formData: FormData)
 const sourceStatusSchema = z.object({ sourceId: id, status: z.enum(SOURCE_STATUSES) });
 
 export async function setSourceStatus(formData: FormData) {
-  await requireRole("Admin");
+  const current = await requireRole("Admin");
   const parsed = sourceStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
-  await admin.setSourceStatus(parsed.data.sourceId, parsed.data.status);
+  const { sourceId, status } = parsed.data;
+  await audited(current.id, { action: "source_status", entityType: "InformationSource", entityId: sourceId, details: { status } }, () => admin.setSourceStatus(sourceId, status));
   revalidatePath("/", "layout");
 }
 
 export async function deleteSource(formData: FormData) {
-  await requireRole("Admin");
+  const current = await requireRole("Admin");
   const parsed = z.object({ sourceId: id }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
-  await admin.deleteSource(parsed.data.sourceId);
+  const { sourceId } = parsed.data;
+  // A source that no longer exists is not an error here, and leaves no audit event.
+  await audited(current.id, { action: "source_delete", entityType: "InformationSource", entityId: sourceId }, () => admin.deleteSource(sourceId)).catch(() => undefined);
   revalidatePath("/", "layout");
 }
 
 export async function saveUniversity(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
-  await requireRole("Admin");
+  const current = await requireRole("Admin");
   const i18n = await getActionI18n();
   const universityId = id.optional().safeParse(formData.get("universityId") || undefined);
   const parsed = universitySchema.safeParse(Object.fromEntries(formData));
@@ -146,8 +171,10 @@ export async function saveUniversity(_: ActionResult | undefined, formData: Form
   const result = await runAction(
     i18n.t,
     async () => {
-      if (universityId.data) await admin.updateUniversity(universityId.data, parsed.data);
-      else await admin.createUniversity(parsed.data);
+      const details = { name: parsed.data.universityName, countryCode: parsed.data.countryCode };
+      const existing = universityId.data;
+      if (existing) await audited(current.id, { action: "university_update", entityType: "University", entityId: existing, details }, () => admin.updateUniversity(existing, parsed.data));
+      else await audited(current.id, { action: "university_create", entityType: "University", entityId: (created) => created, details }, () => admin.createUniversity(parsed.data));
     },
     "admin.universities.exists",
   );
@@ -156,11 +183,14 @@ export async function saveUniversity(_: ActionResult | undefined, formData: Form
 }
 
 export async function assignMentor(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
-  await requireRole("Admin");
+  const current = await requireRole("Admin");
   const { t } = await getActionI18n();
   const parsed = assignRequestSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: t("validation.required") };
-  const result = await runAction(t, () => help.assignMentor(parsed.data.requestId, parsed.data.mentorUserId));
+  const { requestId, mentorUserId } = parsed.data;
+  const result = await runAction(t, () =>
+    audited(current.id, { action: "mentor_assign", entityType: "HelpRequest", entityId: requestId, details: { mentorUserId } }, () => help.assignMentor(requestId, mentorUserId)),
+  );
   revalidatePath("/admin/requests");
   return result.ok ? { ok: true, message: t("admin.requests.assigned") } : result;
 }
@@ -173,10 +203,13 @@ export async function saveUser(_: ActionResult | undefined, formData: FormData):
   if (parsed.data.userId === current.id && (parsed.data.role !== "Admin" || !parsed.data.isActive)) {
     return { ok: false, error: t("admin.users.selfDemote") };
   }
-  const result = await runAction(t, async () => {
-    const affected = await users.setUserRoleAndStatus(parsed.data.userId, parsed.data.role, parsed.data.isActive);
-    if (affected === 0) throw new AppError("errors.userNotFound", undefined, "notFound");
-  });
+  const { userId, role, isActive } = parsed.data;
+  const result = await runAction(t, () =>
+    audited(current.id, { action: "user_update", entityType: "User", entityId: userId, details: { role, active: isActive } }, async () => {
+      const affected = await users.setUserRoleAndStatus(userId, role, isActive);
+      if (affected === 0) throw new AppError("errors.userNotFound", undefined, "notFound");
+    }),
+  );
   revalidatePath("/admin/users");
   return result.ok ? { ok: true, message: t("admin.users.saved") } : result;
 }
