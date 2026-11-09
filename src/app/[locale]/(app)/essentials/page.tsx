@@ -1,3 +1,4 @@
+import { safeHref } from "@/lib/safe-url";
 import { ExternalLinkIcon, GlobeIcon, MapPinnedIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -47,8 +48,8 @@ export default async function EssentialsPage({ searchParams }: PageProps<"/[loca
         title={t("essentials.title", { city: university.City })}
         description={t("essentials.intro", { university: university.UniversityName })}
         actions={
-          university.Website && (
-            <a href={university.Website} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 font-medium link-accent">
+          safeHref(university.Website) && (
+            <a href={safeHref(university.Website)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 font-medium link-accent">
               <GlobeIcon className="size-4" aria-hidden /> {t("essentials.universityWebsite")}
               <span className="sr-only">({t("common.externalLink")})</span>
             </a>
@@ -88,8 +89,8 @@ export default async function EssentialsPage({ searchParams }: PageProps<"/[loca
                       <ul className="grid gap-2 border-t pt-3">
                         {topic.sources.map((source) => (
                           <li key={source.SourceID} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                            {source.SourceURL ? (
-                              <a href={source.SourceURL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 link-accent">
+                            {safeHref(source.SourceURL) ? (
+                              <a href={safeHref(source.SourceURL)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 link-accent">
                                 {source.SourceTitle} <ExternalLinkIcon className="size-3.5" aria-hidden />
                                 <span className="sr-only">({t("common.externalLink")})</span>
                               </a>

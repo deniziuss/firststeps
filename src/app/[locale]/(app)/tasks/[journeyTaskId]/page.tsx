@@ -1,3 +1,4 @@
+import { safeHref } from "@/lib/safe-url";
 import { ArrowLeftIcon, ExternalLinkIcon, InfoIcon, LanguagesIcon, LockIcon, ShieldQuestionIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -80,9 +81,9 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
                       <p className="font-medium">{source.SourceTitle}</p>
                       <SourceStatusBadge status={source.SourceStatus} i18n={i18n} />
                     </div>
-                    {source.SourceURL && (
+                    {safeHref(source.SourceURL) && (
                       <a
-                        href={source.SourceURL}
+                        href={safeHref(source.SourceURL)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex w-fit items-center gap-1.5 text-sm break-all link-accent"

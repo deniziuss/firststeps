@@ -26,7 +26,8 @@ const optionalText = (max: number) =>
     .trim()
     .max(max, tooLong)
     .transform((value) => (value === "" ? null : value));
-const optionalUrl = (max: number) => optionalText(max).pipe(z.url("validation.url").nullable());
+// Only http and https: javascript:, data: and other schemes are rejected (stored links are shown to students).
+const optionalUrl = (max: number) => optionalText(max).pipe(z.url({ protocol: /^https?$/, error: "validation.url" }).nullable());
 
 export const registerSchema = z
   .object({ firstName: name, lastName: name, email, password, confirmPassword: z.string() })

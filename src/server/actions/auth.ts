@@ -29,13 +29,14 @@ export async function register(_: ActionResult | undefined, formData: FormData):
   if (!allowed) return { ok: false, error: t("auth.tooManyAttempts") };
 
   let userId: number;
+  const passwordHash = await hashPassword(password);
   try {
-    userId = await users.createStudent({ firstName, lastName, email, passwordHash: await hashPassword(password) });
+    userId = await users.createStudent({ firstName, lastName, email, passwordHash });
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, error: t("auth.emailTaken"), fieldErrors: { email: [t("auth.emailTaken")] } };
     throw error;
   }
-  await createSession(userId);
+  await createSession(userId, passwordHash);
   redirect("/onboarding");
 }
 
@@ -54,9 +55,8 @@ export async function signIn(_: ActionResult | undefined, formData: FormData): P
   if (!account || !valid || !account.IsActive) return { ok: false, error: t("auth.wrongCredentials") };
 
   resetTokens(key);
-  await createSession(account.UserID);
-  const user = await users.findUserById(account.UserID);
-  redirect(HOME_BY_ROLE[user!.UserRole]);
+  await createSession(account.UserID, account.PasswordHash);
+  redirect(HOME_BY_ROLE[account.UserRole]);
 }
 
 export async function signOut() {
@@ -86,7 +86,10 @@ export async function changePassword(_: ActionResult | undefined, formData: Form
   if (!stored || !(await verifyPassword(stored.PasswordHash, parsed.data.currentPassword))) {
     return { ok: false, error: t("settings.wrongPassword"), fieldErrors: { currentPassword: [t("settings.wrongPassword")] } };
   }
-  await users.updatePasswordHash(user.id, await hashPassword(parsed.data.newPassword));
+  const newHash = await hashPassword(parsed.data.newPassword);
+  await users.updatePasswordHash(user.id, newHash);
   resetTokens(key);
+  // The new hash invalidates every older session of this account; this browser gets a fresh one.
+  await createSession(user.id, newHash);
   return { ok: true, message: t("settings.passwordChanged") };
 }
