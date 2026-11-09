@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter, Inter_Tight } from "next/font/google";
 import { notFound } from "next/navigation";
 import { ThemeProvider } from "@/components/theme";
 import { I18nProvider } from "@/i18n/client";
@@ -7,9 +7,14 @@ import { isLocale, LOCALES } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
 import "../globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin", "latin-ext"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin", "latin-ext"], axes: ["opsz"] });
+// Inter Tight (display, weight 300–500) and Inter (body/UI) are SIL OFL licensed; Geist Mono sets data labels.
+const inter = Inter({ variable: "--font-inter", subsets: ["latin", "latin-ext"] });
+const interTight = Inter_Tight({ variable: "--font-inter-tight", subsets: ["latin", "latin-ext"], weight: ["300", "400", "500"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin", "latin-ext"] });
+
+// Marks the document as script-enabled before first paint, so reveal animations can hide their
+// targets without a flash. Without JavaScript the class is missing and everything stays visible.
+const JS_FLAG = "document.documentElement.classList.add('js')";
 
 export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }));
@@ -28,7 +33,10 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   if (!isLocale(locale)) notFound();
 
   return (
-    <html lang={locale} suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full`}>
+    <html lang={locale} suppressHydrationWarning className={`${inter.variable} ${interTight.variable} ${geistMono.variable} h-full`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: JS_FLAG }} />
+      </head>
       <body className="min-h-full">
         <I18nProvider locale={locale}>
           <ThemeProvider>{children}</ThemeProvider>
