@@ -84,7 +84,7 @@ jobs:
       - name: Install sqlcmd
         run: |
           if ! command -v sqlcmd >/dev/null; then
-            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
             curl -fsSL https://packages.microsoft.com/config/ubuntu/24.04/prod.list | sudo tee /etc/apt/sources.list.d/microsoft-prod.list >/dev/null
             sudo apt-get update -q && sudo apt-get install -y -q sqlcmd
           fi
