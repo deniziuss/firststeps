@@ -61,3 +61,6 @@ next-env.d.ts
 
 # Raw export from the course database server (replaced by database/migrations)
 /database/firststeps_school_schema.sql
+
+# development email outbox (contains one-time links)
+/.mail-outbox/

@@ -39,6 +39,13 @@ export const signInSchema = z.object({ email, password: z.string().min(1, requir
 
 export const profileSchema = z.object({ firstName: name, lastName: name });
 
+export const resetRequestSchema = z.object({ email });
+
+// The token is checked against the database; here only its size is bounded.
+export const passwordResetSchema = z
+  .object({ token: z.string().min(1).max(100), newPassword: password, confirmPassword: z.string() })
+  .refine((v) => v.newPassword === v.confirmPassword, { path: ["confirmPassword"], message: "validation.passwordsMatch" });
+
 export const passwordChangeSchema = z
   .object({ currentPassword: z.string().min(1, required).max(128, tooLong), newPassword: password, confirmPassword: z.string() })
   .refine((v) => v.newPassword === v.confirmPassword, { path: ["confirmPassword"], message: "validation.passwordsMatch" });

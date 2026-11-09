@@ -11,6 +11,8 @@ export type CurrentUser = {
   lastName: string;
   email: string;
   role: UserRole;
+  /** False until the owner confirms the email address (accounts created before 0006 count as verified). */
+  emailVerified: boolean;
 };
 
 export const HOME_BY_ROLE: Record<UserRole, string> = {
@@ -30,7 +32,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!user || !user.IsActive) return null;
   if (user.SessionVersion !== session.sv) return null;
   if (passwordFingerprint(user.PasswordHash) !== session.pv) return null;
-  return { id: user.UserID, firstName: user.FirstName, lastName: user.LastName, email: user.Email, role: user.UserRole };
+  return { id: user.UserID, firstName: user.FirstName, lastName: user.LastName, email: user.Email, role: user.UserRole, emailVerified: user.EmailVerifiedAt !== null };
 });
 
 export async function requireUser(): Promise<CurrentUser> {

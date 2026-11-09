@@ -44,7 +44,20 @@ export function toAppError(error: unknown, uniqueKey: MessageKey = "errors.dupli
   return new AppError("errors.generic");
 }
 
-export type ActionResult<T = unknown> = { ok: true; data?: T; message?: string } | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+// `values`: non-secret fields echoed back on failure, so the form shows them again after React resets it.
+export type ActionResult<T = unknown> =
+  | { ok: true; data?: T; message?: string }
+  | { ok: false; error: string; fieldErrors?: Record<string, string[]>; values?: Record<string, string> };
+
+/** Text fields to show again after a failed submission. Never pass password fields. */
+export function keptValues(formData: FormData, names: string[]): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const name of names) {
+    const value = formData.get(name);
+    if (typeof value === "string") values[name] = value.slice(0, 2000);
+  }
+  return values;
+}
 
 export async function runAction<T>(t: Translate, work: () => Promise<T>, uniqueKey?: MessageKey): Promise<ActionResult<T>> {
   try {

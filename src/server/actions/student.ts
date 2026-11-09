@@ -7,7 +7,7 @@ import { JOURNEY_STATUSES } from "@/domain/statuses";
 import { getActionI18n } from "@/i18n/server";
 import { dbId, accommodationSchema, fieldErrors, helpRequestSchema, journeySchema, taskStatusSchema } from "@/lib/validation";
 import { requireRole } from "../dal";
-import { isUniqueViolation, runAction, toAppError, type ActionResult } from "../errors";
+import { keptValues, isUniqueViolation, runAction, toAppError, type ActionResult } from "../errors";
 import * as help from "../repositories/help";
 import * as journeys from "../repositories/journeys";
 import * as tasks from "../repositories/tasks";
@@ -80,9 +80,12 @@ export async function updateTaskStatus(_: ActionResult | undefined, formData: Fo
 
 export async function createHelpRequest(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   const user = await requireRole("Student");
+  const values = keptValues(formData, ["subject", "problemDescription"]);
   const { t, has } = await getActionI18n();
+  // Mentors' time is limited: only confirmed accounts can open requests (checked on the server).
+  if (!user.emailVerified) return { ok: false, values, error: t("help.verifyFirst") };
   const parsed = helpRequestSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, error: t("validation.checkFields"), fieldErrors: fieldErrors(parsed.error, t, has) };
+  if (!parsed.success) return { ok: false, values, error: t("validation.checkFields"), fieldErrors: fieldErrors(parsed.error, t, has) };
   const result = await runAction(t, () => help.createHelpRequest(user.id, parsed.data));
   revalidatePath("/", "layout");
   return result.ok ? { ok: true, message: t("help.sent") } : result;
