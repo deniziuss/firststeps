@@ -44,7 +44,7 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
         <p className="text-sm text-muted-foreground">
           {t(`stages.${task.JourneyStage}`)} · {categoryLabel(i18n, task.Category)} · {t("task.priority", { value: task.Priority })}
         </p>
-        <h1 className="max-w-3xl text-3xl font-semibold sm:text-4xl">{task.TaskTitle}</h1>
+        <h1 className="max-w-3xl text-title font-light">{task.TaskTitle}</h1>
         {/* On small screens the status panel comes after the guidance, so show the status right away. */}
         <div className="lg:hidden">
           <TaskStatusBadge status={status} i18n={i18n} />
@@ -85,7 +85,7 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
                         href={source.SourceURL}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex w-fit items-center gap-1.5 text-sm break-all underline decoration-gold/60 underline-offset-4 hover:decoration-gold"
+                        className="inline-flex w-fit items-center gap-1.5 text-sm break-all link-accent"
                       >
                         {source.SourceURL} <ExternalLinkIcon className="size-3.5 shrink-0" aria-hidden />
                         <span className="sr-only">({t("common.externalLink")})</span>
@@ -105,9 +105,9 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
         </div>
 
         <aside className="grid content-start gap-6 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-          <section aria-labelledby="status" className="grid gap-4 rounded-2xl border bg-card p-5">
+          <section aria-labelledby="status" className="grid gap-4 shape-cut border bg-card p-5">
             <div className="flex items-center justify-between gap-2">
-              <h2 id="status" className="text-lg font-semibold">
+              <h2 id="status" className="text-lg font-medium">
                 {t("task.actionsTitle")}
               </h2>
               <TaskStatusBadge status={status} i18n={i18n} />
@@ -122,8 +122,8 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
             )}
           </section>
 
-          <section aria-labelledby="prerequisites" className="grid gap-3 rounded-2xl border bg-card p-5">
-            <h2 id="prerequisites" className="text-lg font-semibold">
+          <section aria-labelledby="prerequisites" className="grid gap-3 shape-cut border bg-card p-5">
+            <h2 id="prerequisites" className="text-lg font-medium">
               {t("task.prerequisitesTitle")}
             </h2>
             {task.prerequisites.length === 0 ? (
@@ -133,7 +133,7 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
                 {task.prerequisites.map((p) => (
                   <li key={p.taskId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     {p.journeyTaskId ? (
-                      <Link href={`/tasks/${p.journeyTaskId}`} className="min-w-0 font-medium underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+                      <Link href={`/tasks/${p.journeyTaskId}`} className="min-w-0 font-medium link-accent">
                         {p.title}
                       </Link>
                     ) : (
@@ -173,14 +173,14 @@ export default async function TaskPage({ params }: PageProps<"/[locale]/tasks/[j
           </section>
 
           {task.dependents.length > 0 && (
-            <section aria-labelledby="unlocks" className="grid gap-3 rounded-2xl border bg-card p-5">
-              <h2 id="unlocks" className="text-lg font-semibold">
+            <section aria-labelledby="unlocks" className="grid gap-3 shape-cut border bg-card p-5">
+              <h2 id="unlocks" className="text-lg font-medium">
                 {t("task.unlocksTitle")}
               </h2>
               <ul className="grid gap-2">
                 {task.dependents.map((d) => (
                   <li key={d.taskId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <Link href={`/tasks/${d.journeyTaskId}`} className="min-w-0 font-medium underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+                    <Link href={`/tasks/${d.journeyTaskId}`} className="min-w-0 font-medium link-accent">
                       {d.title}
                     </Link>
                     <TaskStatusBadge status={d.status} i18n={i18n} />

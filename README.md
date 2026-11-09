@@ -26,6 +26,7 @@ Implemented and covered by tests (see [docs/testing.md](docs/testing.md)):
 - **Dashboards and reports:** student progress by stage, a printable progress report, a mentor queue, and an admin overview with anonymous aggregate charts.
 - **Admin panel:** universities, task templates, dependencies (with cycle and applicability checks), source review, help request assignment and user roles.
 - **English and Turkish:** the whole interface, validation messages and dates are available in both languages. The language switch is in the header before and after sign-in and is remembered in a cookie. Task and source texts from the database are translated; when a translation is missing, the English text is shown with a notice.
+- **Editorial design and motion:** an editorial landing page (floating navigation, product preview with example data, scroll storytelling, an interactive dependency demo, mentor workflow) and the same visual language on student, mentor and admin screens. Motion uses GSAP, Lenis smooth scrolling on the landing page only, and two adapted React Bits components; it respects reduced-motion settings and content never depends on it. Details: [docs/design-system.md](docs/design-system.md).
 - **UI:** a natural palette (deep forest, forest green, warm ivory, ochre gold, warm taupe) with light and dark themes, a responsive layout from 360 px, explicit empty, loading and error states, keyboard access and a skip link. Automated WCAG 2.2 AA checks (axe-core) pass on the public, student, mentor and admin screens in both languages and themes.
 
 ## Tech stack
@@ -33,7 +34,8 @@ Implemented and covered by tests (see [docs/testing.md](docs/testing.md)):
 | Area | Technology |
 |---|---|
 | Web app | Next.js 16 (App Router, Server Actions), React 19, TypeScript |
-| UI | Tailwind CSS 4, shadcn/ui (Radix), lucide-react, Recharts, Fraunces and Geist fonts |
+| UI | Tailwind CSS 4, shadcn/ui (Radix), lucide-react, Recharts, Inter Tight, Inter and Geist Mono fonts |
+| Motion | GSAP 3 (ScrollTrigger, SplitText) with `@gsap/react`, Lenis, adapted React Bits components ([notices](THIRD_PARTY_NOTICES.md)) |
 | Languages | English and Turkish: own typed dictionaries, `Intl` formatting, locale routing through the Next.js proxy |
 | Validation | Zod |
 | Database | Microsoft SQL Server (developed on SQL Server 2022 Express), `mssql` driver |
@@ -125,11 +127,11 @@ scripts/db/            setup, connection check, schema snapshot, synthetic users
 src/app/[locale]/      routes: (auth) sign-in/register, (app) student, mentor and admin screens
 src/i18n/              locale config, English and Turkish dictionaries, translator and formatters
 src/proxy.ts           maps clean URLs to the language from the cookie
-src/components/        UI components
+src/components/        UI components (landing/, motion/, reactbits/, ui/)
 src/domain/            business rules (unit tested)
 src/server/            environment, database access, session, authorization, repositories, server actions
 tests/unit, tests/e2e  Vitest and Playwright tests
-docs/                  architecture, database, testing, progress
+docs/                  architecture, database, design system, testing, progress, screenshots
 ```
 
 ## Current status and roadmap

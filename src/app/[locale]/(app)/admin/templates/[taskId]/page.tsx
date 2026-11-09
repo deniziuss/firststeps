@@ -20,9 +20,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 function Panel({ id, title, text, children }: { id: string; title: string; text?: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={id} className="grid content-start gap-4 rounded-2xl border bg-card p-6">
+    <section aria-labelledby={id} className="grid content-start gap-4 shape-cut border bg-card p-6">
       <div>
-        <h2 id={id} className="text-xl font-semibold">
+        <h2 id={id} className="text-xl font-normal">
           {title}
         </h2>
         {text && <p className="mt-1 text-sm text-muted-foreground">{text}</p>}
@@ -56,7 +56,7 @@ export default async function TemplatePage({ params }: PageProps<"/[locale]/admi
         <ArrowLeftIcon className="size-4" aria-hidden /> {t("admin.templates.back")}
       </Link>
       <div>
-        <h1 className="text-3xl font-semibold">{template.TaskTitle}</h1>
+        <h1 className="text-title font-light">{template.TaskTitle}</h1>
         <p className="mt-2 text-muted-foreground">{t("admin.templates.usage", { count: template.UsageCount })}</p>
       </div>
       <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
@@ -76,7 +76,7 @@ export default async function TemplatePage({ params }: PageProps<"/[locale]/admi
               <ul className="grid gap-1">
                 {prerequisites.map((p) => (
                   <li key={p.TaskID} className="flex items-center justify-between gap-2 text-sm">
-                    <Link href={`/admin/templates/${p.TaskID}`} className="min-w-0 underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+                    <Link href={`/admin/templates/${p.TaskID}`} className="min-w-0 link-accent">
                       {shownTitle(p)}
                     </Link>
                     <form action={removeDependency}>

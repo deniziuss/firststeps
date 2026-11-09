@@ -52,7 +52,7 @@ export default async function SourcesPage() {
                     )}
                   </TableCell>
                   <TableCell className="min-w-48 whitespace-normal">
-                    <Link href={`/admin/templates/${s.TaskID}`} className="underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+                    <Link href={`/admin/templates/${s.TaskID}`} className="link-accent">
                       {s.TaskTitle}
                     </Link>
                   </TableCell>

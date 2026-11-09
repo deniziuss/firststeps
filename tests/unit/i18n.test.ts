@@ -36,7 +36,7 @@ describe("translation dictionaries", () => {
   });
 
   it("translate every message except names and placeholder-only templates", () => {
-    const allowedSame = ["common.appName", "roles.Mentor", "admin.requests.mentor", "task.location", "admin.requests.meta"];
+    const allowedSame = ["common.appName", "roles.Mentor", "admin.requests.mentor", "task.location", "admin.requests.meta", "landing.support.sample.mentor"];
     const same = [...english].filter(([key, value]) => turkish.get(key) === value).map(([key]) => key);
     expect(same.sort()).toEqual(allowedSame.sort());
   });

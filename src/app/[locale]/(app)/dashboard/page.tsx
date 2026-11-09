@@ -56,18 +56,18 @@ export default async function DashboardPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <section aria-labelledby="next-step" className="flex flex-col gap-4 rounded-2xl bg-hero p-6 text-hero-foreground sm:p-8">
-          <h2 id="next-step" className="text-sm font-medium tracking-[0.14em] text-hero-muted uppercase">
+        <section aria-labelledby="next-step" className="dark shape-cut relative flex flex-col gap-4 overflow-hidden bg-hero p-6 text-foreground sm:p-9">
+          <h2 id="next-step" className="eyebrow">
             {t("dashboard.nextStep")}
           </h2>
           {next ? (
             <>
-              <p className="font-heading text-2xl leading-snug font-semibold sm:text-3xl">{next.TaskTitle}</p>
-              <p className="text-hero-muted">
+              <p className="max-w-[24ch] font-heading text-3xl leading-[1.08] font-light tracking-[-0.03em] sm:text-[2.6rem]">{next.TaskTitle}</p>
+              <p className="text-foreground-soft">
                 {t(`stages.${next.JourneyStage}`)} · {categoryLabel(i18n, next.Category)}
               </p>
               <div className="mt-auto pt-2">
-                <Button asChild size="lg" className="border-transparent bg-hero-foreground text-hero hover:bg-hero-foreground/90">
+                <Button asChild size="lg">
                   <Link href={`/tasks/${next.JourneyTaskID}`}>
                     {t("dashboard.nextStepCta")} <ArrowRightIcon aria-hidden />
                   </Link>
@@ -75,15 +75,15 @@ export default async function DashboardPage() {
               </div>
             </>
           ) : progress.total > 0 && progress.completed === progress.total ? (
-            <p className="flex items-center gap-3 font-heading text-2xl font-semibold">
-              <PartyPopperIcon className="size-7 text-hero-muted" aria-hidden /> {t("dashboard.allDone")}
+            <p className="flex items-center gap-3 font-heading text-2xl font-normal">
+              <PartyPopperIcon className="size-7 text-gold" aria-hidden /> {t("dashboard.allDone")}
             </p>
           ) : (
             <>
-              <p className="font-heading text-2xl font-semibold">{t("dashboard.nothingAvailable")}</p>
-              <p className="text-hero-muted">{t("dashboard.nothingAvailableText")}</p>
+              <p className="font-heading text-2xl font-normal">{t("dashboard.nothingAvailable")}</p>
+              <p className="text-foreground-soft">{t("dashboard.nothingAvailableText")}</p>
               <div className="mt-auto pt-2">
-                <Button asChild variant="outline" className="border-hero-muted/50 text-hero-foreground hover:bg-white/10 hover:text-hero-foreground">
+                <Button asChild variant="outline">
                   <Link href={`/journey/${journey.JourneyID}`}>{t("dashboard.openJourney")}</Link>
                 </Button>
               </div>
@@ -91,11 +91,11 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <section aria-labelledby="progress" className="grid content-start gap-4 rounded-2xl border bg-card p-6 sm:p-8">
-          <h2 id="progress" className="text-sm font-medium tracking-[0.14em] text-muted-foreground uppercase">
+        <section aria-labelledby="progress" className="shape-cut grid content-start gap-4 border bg-card p-6 sm:p-8">
+          <h2 id="progress" className="eyebrow">
             {t("dashboard.progress")}
           </h2>
-          <p className="font-heading text-5xl font-semibold tabular-nums">{format.percent(progress.total ? progress.completed / progress.total : 0)}</p>
+          <p className="font-heading text-6xl font-light tracking-[-0.04em] tabular-nums">{format.percent(progress.total ? progress.completed / progress.total : 0)}</p>
           <Progress value={progress.percent} aria-label={t("dashboard.progress")} />
           <p className="text-muted-foreground">{t("dashboard.progressText", { done: progress.completed, count: progress.total })}</p>
           <p className="border-t pt-4 font-medium">
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
           id="upcoming"
           title={t("dashboard.upNext")}
           actions={
-            <Link href={`/journey/${journey.JourneyID}`} className="text-sm font-medium underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+            <Link href={`/journey/${journey.JourneyID}`} className="link-accent text-sm font-medium">
               {t("dashboard.openJourney")}
             </Link>
           }

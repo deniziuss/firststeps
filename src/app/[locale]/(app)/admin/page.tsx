@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 function MoreLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+    <Link href={href} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium link-accent">
       {children} <ArrowRightIcon className="size-4" aria-hidden />
     </Link>
   );

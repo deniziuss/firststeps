@@ -11,7 +11,7 @@ test("language switch is available before sign-in and persists across pages and 
   await page.getByRole("button", { name: "Change language" }).click();
   await page.getByRole("menuitem", { name: "Türkçe" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "tr");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Yurt dışındaki ilk adımların");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Yeni bir ülke");
 
   // The URL stays clean; the choice is stored and used on other pages and in a new tab.
   expect(new URL(page.url()).pathname).toBe("/");

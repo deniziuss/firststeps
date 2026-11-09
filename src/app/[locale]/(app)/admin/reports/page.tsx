@@ -14,9 +14,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 function Panel({ id, title, text, children }: { id: string; title: string; text?: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={id} className="grid content-start gap-4 rounded-2xl border bg-card p-6">
+    <section aria-labelledby={id} className="grid content-start gap-4 shape-cut border bg-card p-6">
       <div>
-        <h2 id={id} className="text-lg font-semibold">
+        <h2 id={id} className="text-lg font-medium">
           {title}
         </h2>
         {text && <p className="mt-1 text-sm text-muted-foreground">{text}</p>}

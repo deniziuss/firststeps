@@ -56,9 +56,9 @@ export default async function JourneyPage({ params }: PageProps<"/[locale]/journ
         }
       />
 
-      <div className="grid gap-3 rounded-2xl border bg-card p-5 sm:p-6">
+      <div className="grid gap-3 shape-cut border bg-card p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="font-heading text-2xl font-semibold tabular-nums">{format.percent(progress.total ? progress.completed / progress.total : 0)}</p>
+          <p className="font-heading text-5xl font-light tracking-[-0.04em] tabular-nums">{format.percent(progress.total ? progress.completed / progress.total : 0)}</p>
           <p className="text-muted-foreground">{t("journey.progressSummary", { done: progress.completed, count: progress.total })}</p>
         </div>
         <Progress value={progress.percent} aria-label={t("dashboard.progress")} />
@@ -76,17 +76,17 @@ export default async function JourneyPage({ params }: PageProps<"/[locale]/journ
           )}
         </div>
         <aside className="grid content-start gap-6">
-          <section aria-labelledby="situation" className="grid gap-4 rounded-2xl border bg-card p-5">
+          <section aria-labelledby="situation" className="grid gap-4 shape-cut border bg-card p-5">
             <div>
-              <h2 id="situation" className="text-lg font-semibold">
+              <h2 id="situation" className="text-lg font-medium">
                 {t("journey.situationTitle")}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">{t("journey.situationText")}</p>
             </div>
             <AccommodationForm journeyId={journey.JourneyID} current={journey.AccommodationStatus} />
           </section>
-          <section aria-labelledby="journey-status" className="grid gap-4 rounded-2xl border bg-card p-5">
-            <h2 id="journey-status" className="text-lg font-semibold">
+          <section aria-labelledby="journey-status" className="grid gap-4 shape-cut border bg-card p-5">
+            <h2 id="journey-status" className="text-lg font-medium">
               {t("journey.statusTitle")}
             </h2>
             <JourneyStatusForm journeyId={journey.JourneyID} current={journey.JourneyStatus} />

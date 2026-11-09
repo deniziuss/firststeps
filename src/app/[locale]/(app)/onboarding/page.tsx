@@ -24,7 +24,7 @@ export default async function OnboardingPage() {
           {t("onboarding.noUniversitiesText")}
         </EmptyState>
       ) : (
-        <div className="rounded-2xl border bg-card p-6 sm:p-8">
+        <div className="shape-cut border bg-card p-6 sm:p-8">
           <JourneyForm universities={universities.map((u) => ({ id: u.UniversityID, label: `${u.UniversityName} — ${u.City}, ${u.Country}` }))} />
         </div>
       )}

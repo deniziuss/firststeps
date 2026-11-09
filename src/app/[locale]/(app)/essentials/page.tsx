@@ -48,7 +48,7 @@ export default async function EssentialsPage({ searchParams }: PageProps<"/[loca
         description={t("essentials.intro", { university: university.UniversityName })}
         actions={
           university.Website && (
-            <a href={university.Website} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 font-medium underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+            <a href={university.Website} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 font-medium link-accent">
               <GlobeIcon className="size-4" aria-hidden /> {t("essentials.universityWebsite")}
               <span className="sr-only">({t("common.externalLink")})</span>
             </a>
@@ -79,8 +79,8 @@ export default async function EssentialsPage({ searchParams }: PageProps<"/[loca
             <Section key={group} id={`group-${group}`} title={t(`essentials.groups.${group}`)}>
               <ul className="grid gap-4 md:grid-cols-2">
                 {groupTopics.map(([taskId, topic]) => (
-                  <li key={taskId} className="grid content-start gap-3 rounded-2xl border bg-card p-5">
-                    <h3 className="text-lg font-semibold">{topic.title}</h3>
+                  <li key={taskId} className="grid content-start gap-3 rounded-lg border bg-card p-5">
+                    <h3 className="text-lg font-medium">{topic.title}</h3>
                     {topic.description && <p className="text-muted-foreground">{topic.description}</p>}
                     {topic.sources.length === 0 ? (
                       <p className="text-sm text-muted-foreground">{t("essentials.noSource")}</p>
@@ -89,7 +89,7 @@ export default async function EssentialsPage({ searchParams }: PageProps<"/[loca
                         {topic.sources.map((source) => (
                           <li key={source.SourceID} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                             {source.SourceURL ? (
-                              <a href={source.SourceURL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+                              <a href={source.SourceURL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 link-accent">
                                 {source.SourceTitle} <ExternalLinkIcon className="size-3.5" aria-hidden />
                                 <span className="sr-only">({t("common.externalLink")})</span>
                               </a>
