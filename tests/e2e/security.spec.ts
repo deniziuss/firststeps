@@ -175,6 +175,25 @@ test("security headers are sent on every page", async ({ request }) => {
   }
 });
 
+test("metrics need the bearer token and count failed sign-ins without personal data", async ({ page, request }) => {
+  expect((await request.get("/api/metrics")).status()).toBe(401);
+  expect((await request.get("/api/metrics", { headers: { Authorization: "Bearer wrong-token-wrong-token-wrong-token" } })).status()).toBe(401);
+  const email = uniqueEmail("e2e");
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("not-the-password-1");
+  await button(page, "Sign in").click();
+  await expect(formAlert(page)).toBeVisible();
+  const response = await request.get("/api/metrics", { headers: { Authorization: `Bearer ${process.env.METRICS_TOKEN}` } });
+  expect(response.status()).toBe(200);
+  const text = await response.text();
+  expect(text).toMatch(/firststeps_log_events_total\{level="info",category="auth",event="sign_in_failed"\} [1-9]/);
+  expect(text).toContain("firststeps_db_statement_duration_ms_count");
+  expect(text).toContain('firststeps_db_pool_connections{state="in_use"}');
+  expect(text).not.toContain(email);
+  expect(text).not.toContain("@");
+});
+
 test("out-of-range and malformed ids are 'not found', never a server error", async ({ page }) => {
   const admin = adminCredentials();
   test.skip(!admin.email, "Run npm run db:seed-users first.");

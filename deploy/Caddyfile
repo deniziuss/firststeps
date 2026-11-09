@@ -22,6 +22,17 @@ firststeps.example {
 		max_size 1MB
 	}
 
+	# JSON access log including the duration of each request (HTTP time seen by the proxy), rotated.
+	log {
+		output file /var/log/caddy/firststeps.access.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+	}
+
+	# Metrics stay local (scraped on the host from 127.0.0.1:3000/api/metrics).
+	respond /api/metrics 404
+
 	reverse_proxy 127.0.0.1:3000 {
 		# Overwrite (not append) the forwarding headers: the app reads the rightmost X-Forwarded-For
 		# entry (TRUST_PROXY_HOPS=1), which is always the real client address set here.

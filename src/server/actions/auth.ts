@@ -69,6 +69,7 @@ export async function register(_: ActionResult | undefined, formData: FormData):
 }
 
 export async function signIn(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  const started = performance.now();
   const values = keptValues(formData, ["email"]);
   const { t, has } = await getActionI18n();
   const parsed = signInSchema.safeParse(Object.fromEntries(formData));
@@ -92,13 +93,15 @@ export async function signIn(_: ActionResult | undefined, formData: FormData): P
   const valid = account ? await verifyPassword(account.PasswordHash, password) : (await hashPassword(password), false);
   if (!account || !valid || !account.IsActive) {
     await hitAll(all).catch(() => undefined);
-    void log("info", "auth", "sign_in_failed", { reason: !account ? "unknown_account" : !valid ? "wrong_password" : "inactive" });
+    void log("info", "auth", "sign_in_failed", { reason: !account ? "unknown_account" : !valid ? "wrong_password" : "inactive", ms: Math.round(performance.now() - started) });
     return { ok: false, values, error: t("auth.wrongCredentials") };
   }
 
   await reset(buckets.pair).catch(() => undefined);
   await createSession(account.UserID, account.PasswordHash, account.SessionVersion);
-  void log("info", "auth", "sign_in", { userId: account.UserID });
+  // ms = server time of the action (rate-limit checks, lookup, Argon2, session); compare with the
+  // proxy's request time to separate server processing from network and client time.
+  void log("info", "auth", "sign_in", { userId: account.UserID, ms: Math.round(performance.now() - started) });
   redirect(HOME_BY_ROLE[account.UserRole]);
 }
 
@@ -218,7 +221,7 @@ export async function confirmEmail(_: ActionResult | undefined, formData: FormDa
   }
 }
 
-export async function resendVerification(_: ActionResult | undefined): Promise<ActionResult> {
+export async function resendVerification(): Promise<ActionResult> {
   const user = await requireUser();
   const { t, locale } = await getActionI18n();
   if (user.emailVerified) return { ok: true, message: t("verify.alreadyVerified") };

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { defineConfig } from "@playwright/test";
 
 // Tests run against a local production build. Credentials come from .env.local; variables already set
@@ -8,6 +9,8 @@ process.loadEnvFile(".env.local");
 process.env.APP_URL = "http://localhost:3100";
 process.env.MAIL_TRANSPORT = "outbox";
 process.env.MAIL_OUTBOX_DIR = ".mail-outbox/e2e";
+// A random token per run enables /api/metrics for the monitoring test (never a fixed value).
+process.env.METRICS_TOKEN ??= randomBytes(24).toString("hex");
 
 export default defineConfig({
   testDir: "tests/e2e",

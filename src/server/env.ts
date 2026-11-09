@@ -40,6 +40,8 @@ const schema = z
     MAIL_FROM: z.string().min(3).default("FirstSteps <no-reply@firststeps.invalid>"),
     MAIL_OUTBOX_DIR: z.string().min(1).default(".mail-outbox"),
     TRUST_PROXY: z.enum(["true", "false"]).optional(),
+    // Bearer token for GET /api/metrics. Unset: the endpoint answers 404.
+    METRICS_TOKEN: z.string().min(32).optional(),
   })
   .superRefine((value, ctx) => {
     const require = (ok: boolean, path: string, message: string) => ok || ctx.addIssue({ code: "custom", path: [path], message });

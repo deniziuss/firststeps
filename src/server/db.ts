@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import sql from "mssql";
 import { env } from "./env";
 import { log, logError } from "./log";
+import { observeDb, type PoolStats } from "./metrics";
 
 export { sql };
 
@@ -43,6 +44,18 @@ export function getPool(): Promise<sql.ConnectionPool> {
   return globalForDb.firstStepsPool;
 }
 
+/** Pool state for /api/metrics without opening a connection (undefined until the pool exists). */
+export async function poolStats(): Promise<PoolStats> {
+  const pending = globalForDb.firstStepsPool;
+  if (!pending) return undefined;
+  try {
+    const pool = (await pending) as sql.ConnectionPool & { size: number; available: number; borrowed: number; pending: number };
+    return { size: pool.size, available: pool.available, borrowed: pool.borrowed, pending: pool.pending };
+  } catch {
+    return undefined;
+  }
+}
+
 function bind(request: sql.Request, params: Params) {
   for (const [name, [type, value]] of Object.entries(params)) {
     request.input(name, type, value);
@@ -59,10 +72,14 @@ const SLOW_QUERY_MS = 500;
 
 async function timed<T>(text: string, run: () => Promise<T>): Promise<T> {
   const started = performance.now();
+  let ok = false;
   try {
-    return await run();
+    const result = await run();
+    ok = true;
+    return result;
   } finally {
     const ms = performance.now() - started;
+    observeDb(ms, ok);
     // Only the start of the statement is logged, never parameter values.
     if (ms > SLOW_QUERY_MS) void log("warn", "perf", "slow_query", { ms: Math.round(ms), statement: text.replace(/\s+/g, " ").trim().slice(0, 80) });
   }
