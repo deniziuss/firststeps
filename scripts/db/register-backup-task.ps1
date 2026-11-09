@@ -1,17 +1,31 @@
-# PREPARED, NOT RUN AUTOMATICALLY: registers a daily Windows scheduled task for the FirstSteps_Dev
-# backup. Changing operating-system scheduled tasks needs the owner's approval; run it yourself:
+# PREPARED, NOT RUN AUTOMATICALLY: registers Windows scheduled tasks for FirstSteps operations.
+# Changing operating-system scheduled tasks needs the owner's approval; run it yourself:
 #
-#   powershell -File scripts/db/register-backup-task.ps1 -Folder D:\FirstStepsBackups -At 02:30
+#   powershell -File scripts/db/register-backup-task.ps1 -Folder D:\FirstStepsBackups
+#   powershell -File scripts/db/register-backup-task.ps1 -Folder D:\FirstStepsBackups -WhatIf   # show only
 #
-# The task runs scripts/db/backup-dev.ps1 as the current user (Windows authentication to the local
-# SQL Server). Check results in %LOCALAPPDATA%\FirstSteps\backup-status.json, or with
-#   Get-ScheduledTaskInfo -TaskName "FirstSteps backup"
-# Remove it with: Unregister-ScheduledTask -TaskName "FirstSteps backup"
-param([Parameter(Mandatory = $true)][string]$Folder, [string]$At = "02:30", [int]$KeepDays = 14)
+# Tasks (all run as the current user; Windows authentication to the local SQL Server):
+#   "FirstSteps backup"        daily at -At       scripts/db/backup-dev.ps1 -Folder <Folder> -KeepDays <KeepDays>
+#   "FirstSteps restore test"  weekly, Sunday     scripts/db/restore-test.ps1 (into FirstSteps_RestoreTest only)
+#   "FirstSteps health check"  every 15 minutes   scripts/ops/health-check.ps1 (writes health-status.json)
+# Results: %LOCALAPPDATA%\FirstSteps\{backup,restore,health}-status.json and Get-ScheduledTaskInfo.
+# Remove: Unregister-ScheduledTask -TaskName "FirstSteps backup" (and the other two names).
+[CmdletBinding(SupportsShouldProcess = $true)]
+param([Parameter(Mandatory = $true)][string]$Folder, [string]$At = "02:30", [int]$KeepDays = 14, [string]$RestoreAt = "03:30")
 $ErrorActionPreference = "Stop"
-$script = Join-Path $PSScriptRoot "backup-dev.ps1"
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$script`" -Folder `"$Folder`" -KeepDays $KeepDays"
-$trigger = New-ScheduledTaskTrigger -Daily -At $At
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1)
-Register-ScheduledTask -TaskName "FirstSteps backup" -Action $action -Trigger $trigger -Settings $settings -Description "Daily verified copy-only backup of FirstSteps_Dev"
-Write-Output "Registered 'FirstSteps backup' daily at $At."
+$root = Split-Path $PSScriptRoot -Parent
+function Action([string]$script, [string]$arguments) {
+  New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $root $script)`" $arguments"
+}
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew
+$tasks = @(
+  @{ Name = "FirstSteps backup"; Action = (Action "db\backup-dev.ps1" "-Folder `"$Folder`" -KeepDays $KeepDays"); Trigger = (New-ScheduledTaskTrigger -Daily -At $At); Description = "Daily verified copy-only backup of FirstSteps_Dev" },
+  @{ Name = "FirstSteps restore test"; Action = (Action "db\restore-test.ps1" ""); Trigger = (New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At $RestoreAt); Description = "Weekly restore of the newest FirstSteps_Dev backup into FirstSteps_RestoreTest" },
+  @{ Name = "FirstSteps health check"; Action = (Action "ops\health-check.ps1" ""); Trigger = (New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 15)); Description = "FirstSteps readiness, backup age, disk space and log anomalies" }
+)
+foreach ($task in $tasks) {
+  if ($PSCmdlet.ShouldProcess($task.Name, "Register scheduled task")) {
+    Register-ScheduledTask -TaskName $task.Name -Action $task.Action -Trigger $task.Trigger -Settings $settings -Description $task.Description | Out-Null
+    Write-Output "Registered '$($task.Name)'."
+  }
+}
