@@ -33,11 +33,11 @@ export default async function HelpPage() {
       ) : (
         <ul className="grid gap-4">
           {requests.map((request) => (
-            <li key={request.RequestID} className="grid gap-3 rounded-2xl border bg-card p-5 sm:p-6">
+            <li key={request.RequestID} className="grid gap-3 rounded-lg border bg-card p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-lg font-semibold">{request.Subject}</h2>
-                  <Link href={`/tasks/${request.JourneyTaskID}`} className="text-sm underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+                  <h2 className="text-lg font-medium">{request.Subject}</h2>
+                  <Link href={`/tasks/${request.JourneyTaskID}`} className="text-sm link-accent">
                     {request.TaskTitle}
                   </Link>
                 </div>

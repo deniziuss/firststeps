@@ -43,9 +43,9 @@ export default async function JourneysPage() {
         <ul className="grid gap-4 md:grid-cols-2">
           {journeys.map((journey) => (
             <li key={journey.JourneyID}>
-              <Link href={`/journey/${journey.JourneyID}`} className="group grid h-full gap-3 rounded-2xl border bg-card p-6 transition-colors hover:border-primary-border">
+              <Link href={`/journey/${journey.JourneyID}`} className="group grid h-full gap-3 shape-cut border bg-card p-6 transition-colors hover:border-primary-border">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-xl font-semibold">{journey.UniversityName}</h2>
+                  <h2 className="text-xl font-normal">{journey.UniversityName}</h2>
                   <span className="rounded-full border px-2.5 py-1 text-xs font-medium">{t(`journeyStatuses.${journey.JourneyStatus}`)}</span>
                 </div>
                 <p className="text-muted-foreground">

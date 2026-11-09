@@ -15,12 +15,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const { t } = await getI18n();
   return (
     <div className="flex min-h-screen">
-      <a href="#main" className="sr-only z-50 rounded-lg bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
+      <a href="#main" className="sr-only z-50 rounded-sm bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
         {t("common.skipToContent")}
       </a>
       {/* The column carries the background for the full page height; its content stays in view. */}
       <aside className="hidden w-64 shrink-0 border-r bg-sidebar print:hidden lg:block">
-        <div className="sticky top-0 flex h-screen flex-col gap-8 px-4 py-6">
+        <div className="sticky top-0 flex h-screen flex-col gap-10 px-5 py-6">
           <Suspense fallback={<Brand />}>
             <UserBrand />
           </Suspense>
@@ -30,7 +30,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur print:hidden sm:px-6">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-hairline bg-background/85 px-4 backdrop-blur-md print:hidden sm:px-6 lg:px-10">
           <Suspense>
             <UserMobileNav />
           </Suspense>
@@ -45,7 +45,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             </Suspense>
           </div>
         </header>
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10">
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[76rem] flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-12">
           {children}
         </main>
       </div>
@@ -91,7 +91,7 @@ async function UserMenu() {
         <p className="text-muted-foreground">{t(`roles.${user.role}`)}</p>
       </div>
       <Avatar className="hidden sm:flex">
-        <AvatarFallback className="bg-secondary font-medium">{initials}</AvatarFallback>
+        <AvatarFallback className="bg-band-strong font-mono text-xs font-medium">{initials}</AvatarFallback>
       </Avatar>
       <form action={signOut}>
         <Button type="submit" variant="ghost" size="icon" aria-label={t("common.signOut")}>

@@ -89,13 +89,13 @@ function NavLinks({ role, onNavigate }: { role: UserRole; onNavigate?: () => voi
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 items-center gap-3 rounded-lg px-3 text-[0.95rem] font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                  active && "bg-sidebar-accent text-sidebar-foreground",
+                  "flex min-h-11 items-center gap-3 rounded-full px-3.5 font-heading text-[0.95rem] tracking-[-0.01em] text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                  active && "bg-card text-sidebar-foreground ring-1 ring-hairline",
                 )}
               >
                 <Icon className={cn("size-[1.15rem]", active ? "text-sidebar-primary" : "text-sidebar-foreground/60")} aria-hidden />
                 {t(item.label)}
-                {active && <span className="ml-auto h-5 w-1 rounded-full bg-sidebar-primary" aria-hidden />}
+                {active && <span className="ml-auto size-1.5 rounded-full bg-sidebar-primary" aria-hidden />}
               </Link>
             </li>
           );
@@ -105,12 +105,21 @@ function NavLinks({ role, onNavigate }: { role: UserRole; onNavigate?: () => voi
   );
 }
 
-export function Brand({ href = "/" }: { href?: string }) {
+// The FirstSteps mark: a rising stair line ending in an ochre point, the "next step".
+export function BrandMark({ className }: { className?: string }) {
   return (
-    <Link href={href} className="flex min-h-11 items-center gap-2.5 rounded-lg font-heading text-xl font-semibold tracking-tight">
-      <span className="grid size-8 place-items-center rounded-lg bg-primary font-sans text-sm font-bold text-primary-foreground" aria-hidden>
-        FS
-      </span>
+    <svg viewBox="0 0 28 28" className={cn("size-7 shrink-0", className)} aria-hidden focusable="false">
+      <rect x="0.75" y="0.75" width="26.5" height="26.5" rx="7" className="fill-primary" />
+      <path d="M6.5 21.5h5v-5h5v-5h5" fill="none" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="stroke-primary-foreground" />
+      <circle cx="21.5" cy="7" r="2.1" className="fill-[#c9a15a]" />
+    </svg>
+  );
+}
+
+export function Brand({ href = "/", className }: { href?: string; className?: string }) {
+  return (
+    <Link href={href} className={cn("flex min-h-11 items-center gap-2.5 rounded-sm font-heading text-[1.3rem] font-normal tracking-[-0.03em]", className)}>
+      <BrandMark />
       FirstSteps
     </Link>
   );

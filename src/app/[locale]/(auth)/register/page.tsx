@@ -13,13 +13,13 @@ export default async function RegisterPage() {
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-3xl font-semibold">{t("auth.registerTitle")}</h1>
+        <h1 className="text-title font-light">{t("auth.registerTitle")}</h1>
         <p className="mt-2 text-muted-foreground">{t("auth.registerIntro")}</p>
       </div>
       <RegisterForm />
       <p className="text-sm text-muted-foreground">
         {t("auth.haveAccount")}{" "}
-        <Link href="/sign-in" className="font-medium text-foreground underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+        <Link href="/sign-in" className="font-medium text-foreground link-accent">
           {t("auth.signInLink")}
         </Link>
       </p>

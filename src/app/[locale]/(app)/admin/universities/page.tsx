@@ -23,9 +23,9 @@ export default async function UniversitiesPage() {
         {universities.map((u) => {
           const used = usage.find((x) => x.UniversityID === u.UniversityID);
           return (
-            <section key={u.UniversityID} aria-labelledby={`uni-${u.UniversityID}`} className="grid content-start gap-4 rounded-2xl border bg-card p-6">
+            <section key={u.UniversityID} aria-labelledby={`uni-${u.UniversityID}`} className="grid content-start gap-4 shape-cut border bg-card p-6">
               <div>
-                <h2 id={`uni-${u.UniversityID}`} className="text-xl font-semibold">
+                <h2 id={`uni-${u.UniversityID}`} className="text-xl font-normal">
                   {u.UniversityName}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -36,8 +36,8 @@ export default async function UniversitiesPage() {
             </section>
           );
         })}
-        <section aria-labelledby="uni-new" className="grid content-start gap-4 rounded-2xl border border-dashed bg-card p-6">
-          <h2 id="uni-new" className="text-xl font-semibold">
+        <section aria-labelledby="uni-new" className="grid content-start gap-4 shape-cut border border-dashed bg-card p-6">
+          <h2 id="uni-new" className="text-xl font-normal">
             {t("admin.universities.add")}
           </h2>
           <UniversityForm />

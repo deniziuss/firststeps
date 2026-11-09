@@ -41,7 +41,7 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/journe
 
       <header className="border-b border-taupe/50 pb-6">
         <p className="text-sm text-muted-foreground">{t("report.heading")}</p>
-        <h1 className="mt-1 text-3xl font-semibold">
+        <h1 className="mt-1 text-title font-light">
           {user.firstName} {user.lastName}
         </h1>
         <p className="mt-2 text-muted-foreground">
@@ -56,7 +56,7 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/journe
       </header>
 
       <section aria-labelledby="summary" className="grid gap-2">
-        <h2 id="summary" className="text-xl font-semibold">
+        <h2 id="summary" className="text-xl font-normal">
           {t("report.summary")}
         </h2>
         <p>
@@ -73,7 +73,7 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/journe
       </section>
 
       <section aria-labelledby="open-tasks" className="grid gap-3">
-        <h2 id="open-tasks" className="text-xl font-semibold">
+        <h2 id="open-tasks" className="text-xl font-normal">
           {t("report.openTasks")}
         </h2>
         {openTasks.length === 0 ? (
@@ -101,7 +101,7 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/journe
       </section>
 
       <section aria-labelledby="completed-tasks" className="grid gap-3">
-        <h2 id="completed-tasks" className="text-xl font-semibold">
+        <h2 id="completed-tasks" className="text-xl font-normal">
           {t("report.completedTasks")}
         </h2>
         {completed.length === 0 ? (
@@ -129,7 +129,7 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/journe
       </section>
 
       <section aria-labelledby="report-help" className="grid gap-3">
-        <h2 id="report-help" className="text-xl font-semibold">
+        <h2 id="report-help" className="text-xl font-normal">
           {t("report.helpRequests")}
         </h2>
         {journeyRequests.length === 0 ? (

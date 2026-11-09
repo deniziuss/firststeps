@@ -42,7 +42,7 @@ export default async function TemplatesPage() {
             {templates.map((tpl) => (
               <TableRow key={tpl.TaskID} className={tpl.IsActive ? undefined : "text-muted-foreground"}>
                 <TableCell className="min-w-64 whitespace-normal">
-                  <Link href={`/admin/templates/${tpl.TaskID}`} className="font-medium underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+                  <Link href={`/admin/templates/${tpl.TaskID}`} className="font-medium link-accent">
                     {i18n.locale === "tr" && tpl.TitleTr ? tpl.TitleTr : tpl.TaskTitle}
                   </Link>
                   {i18n.locale === "tr" && tpl.TitleTr && <div className="text-xs text-muted-foreground" lang="en">{tpl.TaskTitle}</div>}
@@ -76,7 +76,7 @@ export default async function TemplatesPage() {
         </Table>
       </div>
       <Section id="new-task" title={t("admin.templates.newTitle")} className="max-w-3xl">
-        <div className="rounded-2xl border bg-card p-6">
+        <div className="shape-cut border bg-card p-6">
           <TemplateForm universities={universities.map((u) => ({ id: u.UniversityID, label: `${u.UniversityName} (${u.City})` }))} />
         </div>
       </Section>

@@ -29,9 +29,9 @@ export default async function MentorRequestPage({ params }: PageProps<"/[locale]
       <Link href="/mentor" className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
         <ArrowLeftIcon className="size-4" aria-hidden /> {t("mentor.back")}
       </Link>
-      <article className="grid gap-4 rounded-2xl border bg-card p-6 sm:p-8">
+      <article className="grid gap-4 shape-cut border bg-card p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-semibold sm:text-3xl">{request.Subject}</h1>
+          <h1 className="text-title font-light">{request.Subject}</h1>
           <RequestStatusBadge status={request.RequestStatus} i18n={i18n} />
         </div>
         <p className="text-muted-foreground">
@@ -45,9 +45,9 @@ export default async function MentorRequestPage({ params }: PageProps<"/[locale]
         <p className="text-sm text-muted-foreground">{t("mentor.sent", { date: format.dateTime(request.CreatedAt) })}</p>
       </article>
       {canAnswer ? (
-        <section aria-labelledby="answer" className="grid gap-4 rounded-2xl border bg-card p-6 sm:p-8">
+        <section aria-labelledby="answer" className="grid gap-4 shape-cut border bg-card p-6 sm:p-8">
           <div>
-            <h2 id="answer" className="text-xl font-semibold">
+            <h2 id="answer" className="text-xl font-normal">
               {t("mentor.answerTitle")}
             </h2>
             <p className="mt-1 text-muted-foreground">{t("mentor.answerIntro")}</p>
@@ -55,8 +55,8 @@ export default async function MentorRequestPage({ params }: PageProps<"/[locale]
           <ResolveForm requestId={request.RequestID} />
         </section>
       ) : (
-        <section aria-labelledby="answered" className="grid gap-3 rounded-2xl border-l-4 border-gold bg-gold-soft p-6">
-          <h2 id="answered" className="text-lg font-semibold">
+        <section aria-labelledby="answered" className="grid gap-3 shape-cut-sm border border-ochre/40 bg-gold-soft p-6">
+          <h2 id="answered" className="text-lg font-medium">
             {t("mentor.answeredOn", { date: format.dateTime(request.ResolvedAt) })}
           </h2>
           <p className="whitespace-pre-line">{request.ResolutionText}</p>

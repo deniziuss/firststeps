@@ -44,7 +44,7 @@ export default async function AdminRequestsPage({ searchParams }: PageProps<"/[l
       ) : (
         <ul className="grid gap-3">
           {requests.map((r) => (
-            <li key={r.RequestID} data-request={r.Subject} className="grid gap-4 rounded-2xl border bg-card p-5 lg:grid-cols-[1fr_auto] lg:items-center">
+            <li key={r.RequestID} data-request={r.Subject} className="grid gap-4 rounded-lg border bg-card p-5 lg:grid-cols-[1fr_auto] lg:items-center">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium">{r.Subject}</p>
@@ -60,7 +60,7 @@ export default async function AdminRequestsPage({ searchParams }: PageProps<"/[l
                 <div className="flex flex-wrap items-center gap-3">
                   <AssignForm requestId={r.RequestID} mentors={mentorOptions} />
                   {r.RequestStatus === "Assigned" && mentors.some((m) => m.UserID === user.id) && (
-                    <Link href={`/mentor/requests/${r.RequestID}`} className="text-sm font-medium underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+                    <Link href={`/mentor/requests/${r.RequestID}`} className="text-sm font-medium link-accent">
                       {t("admin.requests.answer")}
                     </Link>
                   )}
