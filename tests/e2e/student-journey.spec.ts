@@ -70,6 +70,8 @@ test("student registers, builds a plan and follows prerequisites", async ({ page
   await page.goto(`/journey/${journeyId}/report`);
   await expect(page.getByRole("heading", { name: "Open tasks in order" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Register at the international office" })).toBeVisible();
+  // An open task whose prerequisite is not done is reported as Locked, as on the journey page.
+  await expect(page.getByRole("row", { name: /Confirm your course enrolment/ })).toContainText("Locked");
 });
 
 test("duplicate registration and duplicate journey are rejected", async ({ page }) => {
