@@ -28,14 +28,29 @@ const schema = z
     // Absolute base URL for links in emails. Never derived from the request Host header, so a forged
     // Host cannot redirect password-reset links to another site.
     APP_URL: z.url({ protocol: /^https?$/ }).default("http://localhost:3000"),
-    MAIL_TRANSPORT: z.enum(["outbox", "disabled"]).default("outbox"),
+    MAIL_TRANSPORT: z.enum(["outbox", "smtp", "disabled"]).default("outbox"),
+    // SMTP (MAIL_TRANSPORT=smtp). TLS is always used; SMTP_REQUIRE_TLS=false exists only for a local
+    // test server and is refused in a public deployment.
+    SMTP_HOST: z.string().min(1).optional(),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+    SMTP_SECURE: z.enum(["true", "false"]).default("false"),
+    SMTP_USER: z.string().min(1).optional(),
+    SMTP_PASSWORD: z.string().min(1).optional(),
+    SMTP_REQUIRE_TLS: z.enum(["true", "false"]).default("true"),
     MAIL_FROM: z.string().min(3).default("FirstSteps <no-reply@firststeps.invalid>"),
     MAIL_OUTBOX_DIR: z.string().min(1).default(".mail-outbox"),
     TRUST_PROXY: z.enum(["true", "false"]).optional(),
+    // Bearer token for GET /api/metrics. Unset: the endpoint answers 404.
+    METRICS_TOKEN: z.string().min(32).optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.DEPLOYMENT !== "public") return;
     const require = (ok: boolean, path: string, message: string) => ok || ctx.addIssue({ code: "custom", path: [path], message });
+    if (value.MAIL_TRANSPORT === "smtp") {
+      require(value.SMTP_HOST !== undefined, "SMTP_HOST", "is required when MAIL_TRANSPORT=smtp");
+      require(value.SMTP_USER === undefined || value.SMTP_PASSWORD !== undefined, "SMTP_PASSWORD", "is required with SMTP_USER");
+    }
+    if (value.DEPLOYMENT !== "public") return;
+    require(value.SMTP_REQUIRE_TLS === "true", "SMTP_REQUIRE_TLS", "TLS cannot be disabled in a public deployment");
     require(value.APP_URL.startsWith("https://"), "APP_URL", "must use https in a public deployment");
     require(value.MAIL_TRANSPORT !== "outbox", "MAIL_TRANSPORT", "the development outbox is not allowed in a public deployment");
     require(value.DB_ENCRYPT === "true", "DB_ENCRYPT", "must be true in a public deployment");

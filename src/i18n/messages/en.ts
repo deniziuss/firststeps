@@ -234,11 +234,20 @@ export const en = {
     verify: {
       subject: "Confirm your FirstSteps email address",
       text: "Hello {name},\n\nplease confirm your email address for FirstSteps:\n{link}\n\nThe link is valid for {hours} hours and works once. If you did not create an account, you can ignore this email.\n\nFirstSteps",
+      button: "Confirm my email address",
     },
     reset: {
       subject: "Reset your FirstSteps password",
       text: "Hello {name},\n\nsomeone asked to reset the password of your FirstSteps account. To choose a new password, open:\n{link}\n\nThe link is valid for {minutes} minutes and works once. If this was not you, ignore this email; your password stays the same.\n\nFirstSteps",
+      button: "Choose a new password",
     },
+    verifyResend: {
+      subject: "Your new FirstSteps confirmation link",
+      text: "Hello {name},\n\nhere is a new link to confirm your email address for FirstSteps. Earlier links no longer work.\n{link}\n\nThe link is valid for {hours} hours and works once. If you did not ask for it, you can ignore this email.\n\nFirstSteps",
+      button: "Confirm my email address",
+    },
+    linkHint: "If the button does not work, copy this link into your browser:",
+    footer: "You receive this email because this address was used for a FirstSteps account. FirstSteps is an independent student project and is not affiliated with any university. We never ask for your password by email.",
   },
   onboarding: {
     welcome: "Welcome, {name}",
@@ -454,6 +463,10 @@ export const en = {
     appearanceText: "Choose light, dark or your device setting. Saved in this browser.",
     language: "Language",
     languageText: "Choose the language of FirstSteps. Saved for your next visits.",
+    data: "Your data",
+    dataText: "Download a copy of the information FirstSteps stores about your account: profile, journeys, tasks and help requests. Your password and session data are never included.",
+    exportData: "Download my data (JSON)",
+    deletionText: "To delete your account, contact the FirstSteps team. Your name and email address are then removed and your journeys and help requests are anonymised.",
   },
   mentor: {
     title: "Assigned requests",
@@ -655,6 +668,7 @@ export const en = {
         source_status: "Source status changed",
         source_delete: "Source deleted",
         mentor_assign: "Mentor assigned",
+        user_anonymize: "Account anonymised",
       },
       entities: {
         User: "User",

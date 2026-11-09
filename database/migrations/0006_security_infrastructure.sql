@@ -1,5 +1,5 @@
 /*
-  PROPOSAL 0006 (moves to database/migrations after approval): security infrastructure (application tables; the eight course tables are unchanged
+  MIGRATION 0006: security infrastructure (application tables; the eight course tables are unchanged
   except for one new nullable column on dbo.Users).
 
   1. dbo.Rate_Limit_Buckets   persistent, atomic rate-limit counters (survive restarts, shared by
@@ -12,7 +12,8 @@
                               refused; DELETE only through dbo.usp_AdminAudit_Purge (retention).
 
   Idempotent. Rollback: database/rollbacks/0006_rollback.sql.
-  Status: tested on the disposable FirstSteps_Test database; applied to FirstSteps_Dev only after approval.
+  Status: approved and applied to the local FirstSteps_Dev on 2026-11-10 (after a verified backup); 4 existing
+  accounts backfilled as verified. Tested before on FirstSteps_Test and FirstSteps_RestoreTest and in CI.
 */
 SET NOCOUNT ON;
 GO
@@ -93,17 +94,25 @@ END;
 GO
 
 /* 2. Email verification state ------------------------------------------------------------------ */
+-- The column is added and the accounts that exist AT THAT MOMENT are backfilled as verified, in one
+-- transaction, in the same batch that adds the column:
+--   - the backfill runs only in the execution that creates the column, so later executions (also on a
+--     database that started empty) never mark newly registered, unverified accounts as verified;
+--   - existing timestamps are never overwritten (only NULL values in that one-time backfill);
+--   - an interrupted run leaves neither the column nor a partial backfill (XACT_ABORT rolls back
+--     both), so the next run starts cleanly;
+--   - the UPDATE is dynamic SQL, compiled only after the column exists (a static reference would
+--     fail to compile when the batch is parsed before the column is added).
+-- Backfilled rows are recognisable by EmailVerifiedAt = CreatedAt.
+SET XACT_ABORT ON;
 IF COL_LENGTH(N'dbo.Users', N'EmailVerifiedAt') IS NULL
 BEGIN
-    ALTER TABLE dbo.Users ADD EmailVerifiedAt DATETIME2(0) NULL;
+    BEGIN TRANSACTION;
+        ALTER TABLE dbo.Users ADD EmailVerifiedAt DATETIME2(0) NULL;
+        EXEC sys.sp_executesql N'UPDATE dbo.Users SET EmailVerifiedAt = CreatedAt WHERE EmailVerifiedAt IS NULL;';
+    COMMIT TRANSACTION;
 END;
-GO
--- Accounts created before email verification existed are treated as verified (one-time backfill,
--- recognisable by EmailVerifiedAt = CreatedAt). Runs only while the column has never been used.
-IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE EmailVerifiedAt IS NOT NULL)
-BEGIN
-    UPDATE dbo.Users SET EmailVerifiedAt = CreatedAt WHERE EmailVerifiedAt IS NULL;
-END;
+SET XACT_ABORT OFF;
 GO
 
 /* 3. Account tokens ---------------------------------------------------------------------------- */

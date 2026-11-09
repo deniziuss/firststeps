@@ -45,6 +45,20 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # The operational scripts run on the database host (Windows, SQL Server); here they are at least
+      # parsed, so a syntax error cannot reach a scheduled backup or health check.
+      - name: Operational scripts parse
+        shell: pwsh
+        run: |
+          $failed = 0
+          foreach ($file in Get-ChildItem scripts -Recurse -Filter *.ps1) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors) { $failed++; $errors | ForEach-Object { Write-Output "$($file.Name): $($_.Message)" } } else { Write-Output "ok $($file.Name)" }
+          }
+          foreach ($file in Get-ChildItem scripts -Recurse -Filter *.mjs) { node --check $file.FullName; if ($LASTEXITCODE) { $failed++ } }
+          exit $failed
+
       # The build needs no database: data is only read at request time.
       # Database-backed and end-to-end tests run locally (see docs/testing.md).
       - name: Production build
@@ -88,7 +102,8 @@ jobs:
         run: |
           mkdir -p "$HOME/.local/bin"
           echo '#!/bin/sh' > "$HOME/.local/bin/sqlcmd"
-          echo 'exec docker exec -i -w "$PWD" firststeps-mssql /opt/mssql-tools18/bin/sqlcmd "$@"' >> "$HOME/.local/bin/sqlcmd"
+          # SQLCMDPASSWORD is forwarded (when set) so passwords never appear on a command line.
+          echo 'exec docker exec -i -e SQLCMDPASSWORD -w "$PWD" firststeps-mssql /opt/mssql-tools18/bin/sqlcmd "$@"' >> "$HOME/.local/bin/sqlcmd"
           chmod +x "$HOME/.local/bin/sqlcmd"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
@@ -105,9 +120,12 @@ jobs:
         run: |
           SQL="sqlcmd -S tcp:127.0.0.1,1433 -U sa -P $SA_PASSWORD -C -b"
           $SQL -i database/ci/00_create_test_database.sql -v APP_PASSWORD="$APP_PASSWORD"
-          for f in database/migrations/*.sql; do echo "migration $f"; $SQL -d FirstSteps_Test -i "$f"; done
-          # Pending until approved for FirstSteps_Dev; the code on this branch needs it.
-          for f in database/proposals/0006_security_infrastructure.sql; do echo "proposal $f"; $SQL -d FirstSteps_Test -i "$f"; done
+          for f in database/migrations/*.sql; do
+            # Two synthetic accounts that exist BEFORE 0006, like the developer database: 0006 must mark
+            # them verified once, and never mark later accounts (checked below).
+            case "$f" in *0006_*) $SQL -d FirstSteps_Test -Q "INSERT dbo.Users (FirstName, LastName, Email, PasswordHash, UserRole) VALUES (N'Ci', N'Admin', N'ci-admin@example.invalid', N'x', N'Admin'), (N'Ci', N'Mentor', N'ci-mentor@example.invalid', N'x', N'Mentor');";; esac
+            echo "migration $f"; $SQL -d FirstSteps_Test -i "$f"
+          done
           $SQL -d FirstSteps_Test -i database/local/02_seed_content.sql
           $SQL -d FirstSteps_Test -i database/local/03_seed_translations.sql
 
@@ -118,13 +136,55 @@ jobs:
           if grep -q "FAIL" verify.txt; then echo "04_verify reported a failure"; exit 1; fi
           $SQL -i database/tests/0006_verify.sql
 
+      # Every migration again (a repeated deployment must change nothing), then the 0006
+      # scenario tests: fresh install, interrupted run, re-runs, unverified accounts after a re-run.
+      - name: Repeat migrations and 0006 idempotency scenarios
+        run: |
+          SQL="sqlcmd -S tcp:127.0.0.1,1433 -U sa -P $SA_PASSWORD -C -b -d FirstSteps_Test -W"
+          for f in database/migrations/*.sql; do echo "re-run $f"; $SQL -i "$f"; done
+          $SQL -i database/tests/0006_idempotency.sql | tee idempotency.txt
+          $SQL -i database/tests/0006_rerun_unverified.sql | tee rerun.txt
+          if grep -q "FAIL" idempotency.txt rerun.txt; then echo "0006 scenario failed"; exit 1; fi
+          grep -q "PASS" idempotency.txt && grep -q "PASS" rerun.txt
+
       - name: SQL / TypeScript prerequisite parity
         env:
           SQLCMD_SERVER: tcp:127.0.0.1,1433
           SQLCMD_USER: sa
         run: SQLCMD_PASSWORD="$SA_PASSWORD" npm run test:db
 
-      - name: App readiness against the test database (least-privilege login)
+      # Races, audit immutability and the verification backfill, with the application's own login;
+      # owner-level steps use sa through SQLCMDPASSWORD.
+      - name: Security checks for 0006 (application login)
+        env:
+          DB_SERVER: 127.0.0.1
+          DB_PORT: "1433"
+          DB_USER: firststeps_app
+          DB_ENCRYPT: "true"
+          DB_TRUST_SERVER_CERT: "true"
+          SQLCMD_USER: sa
+          DEV_ADMIN_EMAIL: ci-admin@example.invalid
+          DEV_MENTOR_EMAIL: ci-mentor@example.invalid
+        run: DB_PASSWORD="$APP_PASSWORD" SQLCMDPASSWORD="$SA_PASSWORD" node scripts/verify-0006-security.mjs
+
+      - name: Maintenance (dry run, then apply) with the application login
+        env:
+          DB_SERVER: 127.0.0.1
+          DB_PORT: "1433"
+          DB_USER: firststeps_app
+          DB_ENCRYPT: "true"
+          DB_TRUST_SERVER_CERT: "true"
+        run: |
+          DB_PASSWORD="$APP_PASSWORD" node scripts/db/maintenance.mjs | tee maintenance.txt
+          DB_PASSWORD="$APP_PASSWORD" node scripts/db/maintenance.mjs --apply | tee -a maintenance.txt
+          ! grep -q maintenance_failed maintenance.txt
+
+      - name: Proposal 0005 measurement (rolled back)
+        run: |
+          sqlcmd -S tcp:127.0.0.1,1433 -U sa -P "$SA_PASSWORD" -C -b -d FirstSteps_Test -W -i database/tests/0005_measure.sql | tee measure.txt | grep -E "^(===|--- |Table 'Help_Requests')"
+          grep -q "indexes0005=0" measure.txt
+
+      - name: App readiness, metrics and export protection (least-privilege login)
         env:
           DB_SERVER: 127.0.0.1
           DB_PORT: "1433"
@@ -133,11 +193,22 @@ jobs:
           DB_TRUST_SERVER_CERT: "true"
           MAIL_TRANSPORT: disabled
         run: |
+          METRICS_TOKEN="$(openssl rand -hex 24)"; echo "::add-mask::$METRICS_TOKEN"
           npm run build
-          DB_PASSWORD="$APP_PASSWORD" npx next start -p 3200 &
+          DB_PASSWORD="$APP_PASSWORD" METRICS_TOKEN="$METRICS_TOKEN" npx next start -p 3200 > app.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3200/api/health >/dev/null 2>&1 && break; sleep 1; done
           curl -fsS http://127.0.0.1:3200/api/ready | tee ready.json
           grep -q '"status":"ready"' ready.json
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3200/api/metrics)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3200/api/account/export)" = 401
+          curl -fsS -H "Authorization: Bearer $METRICS_TOKEN" http://127.0.0.1:3200/api/metrics | tee metrics.txt | grep -E "^firststeps_(db_statement_duration_ms_count|process_uptime)"
+          grep -q "firststeps_db_statement_duration_ms_count" metrics.txt
+
+      - name: Diagnostics
+        if: failure()
+        run: |
+          docker logs firststeps-mssql 2>&1 | tail -80 || true
+          tail -80 app.log 2>/dev/null || true
 
       - name: Remove the container
         if: always()

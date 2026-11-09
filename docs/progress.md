@@ -61,6 +61,24 @@ Typecheck, lint and production build pass · unit 36/36 · E2E 19/19 in two cons
   - the Windows backup schedule;
   - a real email provider.
 
+## Operational readiness (2026-11-10, `feat/operational-readiness-hardening`)
+- **Fixed:** migration 0006 could mark unverified accounts as verified on a re-run (now tied to the creation of the column; 7 scenarios tested).
+- **Implemented:**
+  - Host/HTTPS checks for public deployments and prepared Caddy/nginx configs;
+  - SMTP transport with TLS, timeouts and retry; branded EN/TR emails;
+  - backup free-space check, safe retention and a restore test with a schema comparison;
+  - token-protected metrics, a local health/alert check and log rotation;
+  - account data export and an audited anonymisation script;
+  - bounded maintenance;
+  - the 0005 measurement (narrowed to one index);
+  - CI coverage for all of it.
+- **Waiting for approval:**
+  - 0005 on `FirstSteps_Dev` (0006 was approved and applied on 2026-11-10);
+  - the scheduled tasks;
+  - an email provider;
+  - a host and certificates;
+  - the privacy notice.
+
 ## Working agreement
 - `main` stays green: typecheck, lint, unit tests and build pass before every push; database and E2E tests run locally for changes that touch them.
 - Larger or risky changes go through a feature branch and a pull request; release tags only after approval.

@@ -99,7 +99,7 @@ Status labels: **Fixed and verified**, **Verified, no issue found**, **Open issu
 All new tables are in **proposal 0006** (`database/proposals/0006_security_infrastructure.sql`, rollback `database/rollbacks/0006_rollback.sql`).
 - **Tested on:** `FirstSteps_Test`, a restored copy of a verified `FirstSteps_Dev` backup, and in the CI SQL Server container.
 - **Not applied** to `FirstSteps_Dev`: **Prepared, awaiting approval**.
-- The application code on this branch needs 0006, so until it is approved the branch runs against `FirstSteps_Test` (`DB_NAME=FirstSteps_Test`).
+- The application code on this branch needs 0006, so until it is approved the branch runs against `FirstSteps_Test` (`DB_NAME=FirstSteps_Test`). (Approved and applied to `FirstSteps_Dev` on 2026-11-10, round 5.)
 
 | ID | Area | Before | Now | Evidence | Status |
 |---|---|---|---|---|---|
@@ -140,12 +140,25 @@ All new tables are in **proposal 0006** (`database/proposals/0006_security_infra
 
 Details hold ids, enum values and content titles only; keys that look like emails, passwords, tokens or sessions are dropped. Students and mentors are redirected away from `/admin/audit`.
 
-## Proposal still pending
+## Round 5: operational readiness (branch `feat/operational-readiness-hardening`)
+
+| ID | Area | Finding or change | Evidence | Status |
+|---|---|---|---|---|
+| OPS-01 | Migration 0006 | **Bug:** the email-verification backfill ran again on any database where no account was verified yet, so a re-run could verify unconfirmed accounts. Now it runs only in the transaction that creates the column | `0006_rerun_unverified.sql`: old 6 wrongly verified, fixed 0; `0006_idempotency.sql` 9/9 PASS locally and in CI | Fixed (not applied to Dev) |
+| OPS-02 | Host header / HTTPS | With `DEPLOYMENT=public`, unknown `Host` → 421, `X-Forwarded-Proto: http` → 308 to `APP_URL`. My first version echoed the request path and allowed `//evil.example` (open redirect); found by its own unit test and fixed | `tests/unit/deployment.test.ts` (6) | Implemented and verified; needs a host |
+| OPS-03 | Reverse proxy | Caddy and nginx configs: TLS, overwritten forwarding headers, limits, timeouts, metrics hidden | `deploy/` | Prepared |
+| OPS-04 | Email | SMTP with mandatory TLS 1.2+, certificate checks, timeouts, retry of temporary failures only; no recipient or link in logs; `SMTP_REQUIRE_TLS=false` refused in public mode | `tests/unit/mail.test.ts` (6, local fake SMTP) | Implemented; needs a provider |
+| OPS-05 | Metrics | `/api/metrics` behind `METRICS_TOKEN` (404 when unset, 401 for a wrong token, constant-time comparison). The build had prerendered it as a static 404; fixed with `connection()` | Unit, E2E and CI | Implemented and verified |
+| OPS-06 | Data export | `/api/account/export`: own data only, no hashes or session data, 10 per hour, 401 without a session | E2E, CI | Implemented and verified |
+| OPS-07 | Anonymisation | Students only, dry run first, double confirmation, active admin required, audited, idempotent, extra guard for Dev | Run on `FirstSteps_Test` | Implemented and verified |
+| OPS-09 | Migration 0006 on `FirstSteps_Dev` | Approved by the owner and applied on 2026-11-10 after a verified backup (`FirstSteps_Dev_20261110_013902.bak`, restore test passed). The 4 existing accounts were backfilled with their `CreatedAt`; a re-run changed nothing | `0006_verify` 11/11, `04_verify` 12/12, parity 19/19, `/api/ready` 200 on Dev; schema fingerprint identical to `FirstSteps_Test` | Applied and verified. Rollback (`0006_rollback.sql`) only manually: it deletes tokens and audit history |
+| OPS-08 | CI | The 0006 security script, maintenance and the 0005 measurement run with the least-privilege app login or inside rolled-back transactions; owner passwords reach `sqlcmd` only through `SQLCMDPASSWORD` | `.github/workflows/ci.yml` | Implemented |
+
+## Proposals still pending
 
 | File | Change | Data impact | Rollback |
 |---|---|---|---|
-| `database/proposals/0005_foreign_key_indexes.sql` | Three foreign-key indexes | None | Drop the three indexes |
-
+| `database/proposals/0005_foreign_key_indexes.sql` | One index, `Help_Requests (JourneyTaskID)` (measured; see `docs/database.md`) | None | `DROP INDEX IX_HelpRequests_JourneyTask ON dbo.Help_Requests` |
 ## Pending schema changes (round 2 plan, kept for reference)
 
 | File | Change | Data impact | Rollback |
@@ -171,53 +184,56 @@ There are three different cases:
 
 Implemented: migration 0003 and the matching application rule, approved and applied on 2026-11-09 (round 3).
 
-## Readiness assessment
+## Readiness assessment (2026-11-10)
 
-**Ready now (controlled local presentation):**
-- Student, mentor and admin workflows are exercised end to end in English and Turkish.
-- Authentication: argon2id, generic errors, rate limits.
-- Sessions: revoked on sign-out, invalidated by password change, 24 h lifetime.
-- Server-side role and ownership checks on every action and page, with negative tests.
-- Parameterized SQL, plus database constraints and triggers.
-- CSP and security headers; http(s)-only links.
-- axe-clean pages, responsive layouts, reduced-motion support.
+This assessment does not claim that the application is secure or production-ready. It lists what has evidence.
 
-**Needs attention before any public deployment:**
-- A shared rate-limit store and a trusted client IP.
-- HTTPS termination.
-- Email verification and password reset.
-- Admin audit trail.
-- Backups and monitoring.
+**Implemented and verified**
+- **Workflows and access control:** student, mentor and admin workflows end to end in English and Turkish. Server-side role and ownership checks with negative tests; parameterized SQL; constraints and triggers.
+- **Authentication and sessions:** Argon2id, generic errors, persistent SQL rate limits with race tests. Sessions revoked on sign-out, password change and admin changes (`SessionVersion`).
+- **Account security:** email verification and password reset with single-use hashed tokens; append-only admin audit log that the app login cannot alter. All of this on `FirstSteps_Test` and in CI.
+- **Migration 0006:** idempotent and safe to re-run (corrected); applied to `FirstSteps_Dev` on 2026-11-10.
+- **Headers and pages:** CSP and security headers; axe-clean pages; responsive layouts; reduced motion.
+- **Operations:**
+  - verified backups with a free-space check;
+  - restore test with a schema comparison against Dev;
+  - health and readiness endpoints, a token-protected metrics endpoint, a local health/alert check and log rotation;
+  - bounded maintenance.
+- **Privacy:** self-service data export; audited anonymisation.
+- **CI:** a disposable SQL Server with migrations, re-runs, 0006 scenarios, parity, security checks with the app login, maintenance and readiness.
+
+**Implemented but requires configuration**
+- **HTTPS:** host and Proto checks (`DEPLOYMENT=public`, `APP_URL`, `TRUST_PROXY`).
+- **Email:** SMTP delivery (`MAIL_TRANSPORT=smtp`, provider credentials, SPF/DKIM/DMARC).
+- **Metrics:** `METRICS_TOKEN`.
+- **Backups:** a dedicated backup folder with restricted permissions.
+
+**Prepared, awaiting approval**
+- Proposal 0005 (one index).
+- Windows scheduled tasks: backup, restore test, health check.
+- Reverse-proxy configs and a host.
+- An email provider.
+- The privacy notice (draft; owner must confirm contact, legal basis and retention).
+
+**Still missing**
 - Real, reviewed content: every source is still *Review pending*.
+- A nonce-based CSP (evaluated, not adopted).
+- A hosted SQL Server: the app accepts only a local server by project rule.
+- An external alerting channel: alerts are written locally only.
+
+**Not tested**
 - A manual screen-reader pass.
-- A nonce-based CSP.
-- Database tests in CI with a disposable SQL Server container.
-
-**Future improvements:** see the roadmap in the README. They are out of scope for this branch.
-
-### Production-readiness checklist
-
-| Area | State |
-|---|---|
-| HTTPS, Secure cookie, HSTS | Cookie `Secure` and HSTS in production builds — **done**; TLS termination is a hosting task — **open** |
-| Reverse proxy | `TRUST_PROXY` and `TRUST_PROXY_HOPS` read the correct client address — **configure per host** |
-| Rate limiting | Per process, in memory — **needs a shared store for more than one instance** |
-| Session invalidation | Sign-out, password change and admin role/status change: persistent through `SessionVersion` (survives restarts, shared by instances) — **done** |
-| Database least privilege | App login can only read, write and execute, no DDL — **done** |
-| Backups | Copy-only backup script with verification — **done locally**; scheduled backups and a tested restore on the host — **open** |
-| Logging and monitoring | Structured error lines on stdout — **done**; log shipping, alerting and uptime checks — **open** |
-| Health check | None; no extra public endpoint was added — **open** |
-| Secrets | `.env.local` is git-ignored and `SESSION_SECRET` (≥ 32 characters) is enforced at start-up — **done**; a hosted secret store — **open** |
-| Personal data | Names, email, arrival data and help texts are stored; no document numbers. A privacy notice and a data-retention rule — **open** |
-| Email-dependent features | Email verification and password reset — **open** (need an email service) |
-| Admin audit trail | **Open** |
-| CI | Typecheck, lint, unit tests, build, production audit, actions pinned by SHA — **done**. Database and E2E tests in CI need a disposable SQL Server container (for example `mcr.microsoft.com/mssql/server` as a job service, with a generated password and the migrations) — **open** |
+- The proxy configs on real Caddy or nginx.
+- Real SMTP delivery and inbox placement.
+- Backup retention on a real dedicated folder.
+- The scheduled tasks themselves.
+- Load from a separate client machine.
 
 ### Verdict
 | Use | Ready? |
 |---|---|
-| Local demonstration | **Yes** |
-| Controlled pilot (one instance, known users, HTTPS terminated by the host) | **After** an HTTPS host is set up and backups are scheduled (0003 and 0004 are now applied) |
-| Public deployment | **No.** Missing: shared rate limiting, email verification and password reset, monitoring, a privacy notice and an admin audit trail |
+| Local demonstration | **Yes** (0006 applied to `FirstSteps_Dev` on 2026-11-10) |
+| Controlled pilot (one instance, known users) | **After** approval and setup of: 0006 on the pilot database, an HTTPS host with the prepared proxy, an email provider, scheduled backups and health checks, and the confirmed privacy notice |
+| Public deployment | **No.** In addition: reviewed content, a hosted database decision, external alerting and a load test from separate machines |
 
 Automated tests passing does not make the application production-ready; the lists above stand.

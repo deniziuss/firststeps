@@ -51,3 +51,8 @@ export function verificationResendBucket(userId: number): Bucket {
 export function passwordChangeBucket(userId: number): Bucket {
   return { scope: "password_change", subject: String(userId), limit: 5, windowSeconds: 15 * MINUTE };
 }
+
+/** Data export: 10 downloads per hour per account. */
+export function authLimitsExport(userId: number): Bucket {
+  return { scope: "data_export", subject: String(userId), limit: 10, windowSeconds: HOUR };
+}

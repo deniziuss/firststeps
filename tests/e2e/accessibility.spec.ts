@@ -94,6 +94,24 @@ for (const colorScheme of ["light", "dark"] as const) {
   });
 }
 
+test("settings data panel: no horizontal overflow on a phone and the export link works by keyboard", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await register(page, "Mia", uniqueEmail("a11y-data"));
+  for (const prefix of ["/tr", "/en"]) {
+    await page.goto(`${prefix}/settings`);
+    await page.waitForLoadState("networkidle");
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `${prefix}/settings horizontal overflow`).toBeLessThanOrEqual(0);
+  }
+  const link = page.getByRole("link", { name: "Download my data (JSON)" });
+  await link.focus();
+  await expect(link).toBeFocused();
+  expect(await link.evaluate((el) => getComputedStyle(el).outlineStyle)).not.toBe("none");
+  const download = page.waitForEvent("download");
+  await page.keyboard.press("Enter");
+  expect((await download).suggestedFilename()).toMatch(/^firststeps-account-\d+\.json$/);
+});
+
 test("keyboard: skip link, focus order and visible focus", async ({ page }) => {
   await register(page, "Kai", uniqueEmail("keys"));
   await page.goto("/dashboard");

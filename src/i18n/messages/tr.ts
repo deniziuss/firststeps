@@ -235,11 +235,20 @@ export const tr: Messages = {
     verify: {
       subject: "FirstSteps e-posta adresini doğrula",
       text: "Merhaba {name},\n\nlütfen FirstSteps için e-posta adresini doğrula:\n{link}\n\nBağlantı {hours} saat geçerlidir ve bir kez çalışır. Hesap oluşturmadıysan bu e-postayı dikkate alma.\n\nFirstSteps",
+      button: "E-posta adresimi doğrula",
     },
     reset: {
       subject: "FirstSteps şifreni sıfırla",
       text: "Merhaba {name},\n\nFirstSteps hesabının şifresinin sıfırlanması istendi. Yeni şifre belirlemek için şu bağlantıyı aç:\n{link}\n\nBağlantı {minutes} dakika geçerlidir ve bir kez çalışır. Bu isteği sen yapmadıysan e-postayı dikkate alma; şifren aynı kalır.\n\nFirstSteps",
+      button: "Yeni şifre belirle",
     },
+    verifyResend: {
+      subject: "Yeni FirstSteps doğrulama bağlantın",
+      text: "Merhaba {name},\n\nFirstSteps için e-posta adresini doğrulamak üzere yeni bağlantın burada. Önceki bağlantılar artık çalışmaz.\n{link}\n\nBağlantı {hours} saat geçerlidir ve bir kez çalışır. Bunu sen istemediysen bu e-postayı dikkate alma.\n\nFirstSteps",
+      button: "E-posta adresimi doğrula",
+    },
+    linkHint: "Düğme çalışmazsa bu bağlantıyı tarayıcına kopyala:",
+    footer: "Bu e-postayı, bu adres bir FirstSteps hesabı için kullanıldığı için alıyorsun. FirstSteps bağımsız bir öğrenci projesidir ve hiçbir üniversiteyle bağlantılı değildir. E-postayla asla şifreni istemeyiz.",
   },
   onboarding: {
     welcome: "Hoş geldin, {name}",
@@ -455,6 +464,10 @@ export const tr: Messages = {
     appearanceText: "Açık, koyu veya cihazının ayarını seç. Bu tarayıcıda saklanır.",
     language: "Dil",
     languageText: "FirstSteps'in dilini seç. Sonraki ziyaretlerin için de hatırlanır.",
+    data: "Verilerin",
+    dataText: "FirstSteps'in hesabınla ilgili sakladığı bilgilerin bir kopyasını indir: profil, yolculuklar, görevler ve yardım talepleri. Şifren ve oturum verilerin hiçbir zaman dahil edilmez.",
+    exportData: "Verilerimi indir (JSON)",
+    deletionText: "Hesabını sildirmek için FirstSteps ekibiyle iletişime geç. Adın ve e-posta adresin silinir; yolculukların ve yardım taleplerin anonimleştirilir.",
   },
   mentor: {
     title: "Bana atanan talepler",
@@ -656,6 +669,7 @@ export const tr: Messages = {
         source_status: "Kaynak durumu değişti",
         source_delete: "Kaynak silindi",
         mentor_assign: "Mentor atandı",
+        user_anonymize: "Hesap anonimleştirildi",
       },
       entities: {
         User: "Kullanıcı",

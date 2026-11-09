@@ -1,0 +1,54 @@
+# FirstSteps behind Caddy (PREPARED, NOT DEPLOYED). Caddy obtains and renews the TLS certificate.
+# The app listens only on 127.0.0.1:3000; SQL Server is never exposed (no proxy route, firewall closed).
+# App environment: DEPLOYMENT=public, APP_URL=https://firststeps.example, TRUST_PROXY=true, TRUST_PROXY_HOPS=1
+{
+	servers {
+		# Caddy faces the internet directly, so no upstream proxy is trusted (no trusted_proxies):
+		# forwarding headers sent by clients are ignored and overwritten below.
+		timeouts {
+			read_header 10s
+			read_body 30s
+			write 60s
+			idle 2m
+		}
+	}
+}
+
+firststeps.example {
+	encode zstd gzip
+
+	# Form posts and server actions are small; larger bodies are refused before reaching the app.
+	request_body {
+		max_size 1MB
+	}
+
+	# JSON access log including the duration of each request (HTTP time seen by the proxy), rotated.
+	log {
+		output file /var/log/caddy/firststeps.access.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+	}
+
+	# Metrics stay local (scraped on the host from 127.0.0.1:3000/api/metrics).
+	respond /api/metrics 404
+
+	reverse_proxy 127.0.0.1:3000 {
+		# Overwrite (not append) the forwarding headers: the app reads the rightmost X-Forwarded-For
+		# entry (TRUST_PROXY_HOPS=1), which is always the real client address set here.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+		header_up X-Request-ID {http.request.uuid}
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 60s
+		}
+	}
+
+	# The app already sends CSP, HSTS (production builds), X-Frame-Options, nosniff, Referrer-Policy and
+	# Permissions-Policy; Caddy adds nothing that could conflict. Its own banner is removed.
+	header -Server
+}
+
+# Plain HTTP is redirected to HTTPS by Caddy automatically.

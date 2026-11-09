@@ -38,12 +38,7 @@ Before the hero was rendered with CSS instead of JavaScript (redesign branch), t
   - mentor queue by `MentorUserID, RequestStatus, CreatedAt` (`IX_HelpRequests_MentorStatus`).
 
   Execution plans were not captured: at pilot size the optimizer's choices are not representative.
-- **Uncovered foreign keys:** three foreign keys have no index:
-  - `Help_Requests.JourneyTaskID`
-  - `Task_Dependencies.RequiredTaskID`
-  - `Journey_Tasks.TaskID`
-
-  At pilot size this cannot be measured. It is a scaling recommendation, prepared as `database/proposals/0005_foreign_key_indexes.sql` and **not applied** (schema change; needs approval).
+- **Uncovered foreign keys:** measured with a synthetic workload (`database/tests/0005_measure.sql`, rolled back). Only `Help_Requests.JourneyTaskID` pays off (student request list 418 → 36 logical reads at 20,000 requests). Proposal 0005 now contains only that index and is **not applied**; full table in `docs/database.md`.
 - **Paging:** the admin user list is paged with `OFFSET … FETCH`, 50 rows per page. The page number is capped, so a large value cannot overflow the SQL `INT` offset.
 - **Connection pool and timeouts:** max 10 connections, 15 s connection timeout, 15 s request timeout.
 - **Deadlocks:** a transaction chosen as a deadlock victim (1205) has been fully rolled back by SQL Server, so `withTransaction` runs it once more. No other error is retried.
@@ -71,7 +66,7 @@ Before the hero was rendered with CSS instead of JavaScript (redesign branch), t
 
 **Reading the numbers**
 - In the 40-sign-in burst through the app (median 1.34 s), argon2id explains at most about 0.17 s, SQL execution well under 0.01 s, and pool waiting about 0.05 s.
-- The rest, roughly 1.1 s, is outside the database and the password hash. Next.js rendering and running 40 browser tabs on the same machine as the server are the likely causes, but **that part was not measured separately**. An earlier version of this page wrongly said that argon2id dominated.
+- The rest, roughly 1.1 s, was not measured in the first round. It is now split (next section).
 - The 18 `slow_query` warnings (606–647 ms) during the burst came from 20 dashboards opened at the same moment. The statements themselves take about 0.1 ms on the server, so the time was spent waiting (connection pool and an overloaded Node process), not executing.
 - At pilot size this is acceptable. Before a public deployment, measure with a load tool on separate client and server machines, and size the pool and `UV_THREADPOOL_SIZE` from that.
 
@@ -79,6 +74,31 @@ Scripts:
 - `scripts/perf-db.mjs`: database latency.
 - `scripts/load-auth.mjs`: concurrent auth through the app.
 - `scripts/verify-0006-security.mjs`: races and permissions.
+
+## Where the sign-in time goes (2026-11-10, production build, FirstSteps_Test, one machine)
+Sign-in now logs `ms`, the server time of the whole action. That covers the rate-limit checks, the account lookup, Argon2id and session creation. `scripts/perf-http.mjs` measures HTTP and rendering with plain `fetch`, without a browser.
+
+| Measurement | Result |
+|---|---|
+| Browser-measured sign-in, 40 at the same time (`load-auth.mjs`, 40 Edge tabs) | median 1,365 ms, p95 1,572 ms, 0 unexpected |
+| Server-side sign-in action for those 40 (`ms` in the `sign_in` / `sign_in_failed` log lines) | median 391 ms, p95 623 ms, max 637 ms |
+| `GET /sign-in`, plain HTTP: sequential / 40 at the same time | median 32 ms / 322 ms total (TTFB 10 / 52 ms) |
+| `GET /api/ready` (one database round trip, no rendering): sequential / 40 at the same time | median 15 ms / 128 ms |
+| 20 registrations at the same time (browser) | median 1,119 ms, p95 1,203 ms |
+| `slow_query` warnings during the burst | 0 |
+
+**Breakdown of the 1.37 s median:**
+
+| Part | Time | How it was measured |
+|---|---|---|
+| Server action | about 0.39 s | Log `ms` |
+| … of which Argon2id | about 0.10–0.17 s | Contention on 4 threads, from the earlier breakdown |
+| … of which waiting for a pooled connection | about 0.05 s | Earlier breakdown |
+| … of which SQL execution | under 0.01 s | Earlier breakdown |
+| Redirect and rendering of the next page under the same burst | about 0.3 s | The plain-HTTP burst of 40 page renders took 0.32 s |
+| Browser and test client: 40 Edge tabs on the same machine as the server, form fill, navigation, script start | about 0.6 s | Remainder; not measured directly |
+
+**Conclusion.** No single server part dominates. Most of the remainder is test-client overhead, which a real user (one browser per person) does not have. No optimisation was made. Before a public deployment, measure again with the client on another machine.
 
 ## Not measured
 - Concurrent load, cold-start behaviour of the database after `AUTO_CLOSE` (it is off in setup), and real mobile hardware.

@@ -1,5 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
+import { countEvent } from "./metrics";
 
 /**
  * Structured server log: one JSON object per line on stdout/stderr, so any log collector can parse it.
@@ -35,6 +36,7 @@ async function requestId(): Promise<string | undefined> {
 }
 
 export async function log(level: Level, category: LogCategory, event: string, context: Context = {}) {
+  countEvent(level, category, event);
   const line = JSON.stringify({ time: new Date().toISOString(), level, category, event, requestId: await requestId(), ...sanitize(context) });
   if (level === "error") console.error(line);
   else if (level === "warn") console.warn(line);

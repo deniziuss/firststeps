@@ -22,6 +22,11 @@ const check = (label, ok, detail = "") => {
   if (!ok) failed++;
 };
 const stamp = Date.now();
+// Owner-level steps (re-running the migration, removing this script's own audit rows) use sqlcmd:
+// Windows authentication locally, or SQLCMD_USER with the password in SQLCMDPASSWORD (CI), so the
+// password never appears on a command line.
+const sqlcmdLogin = process.env.SQLCMD_USER ? ["-U", process.env.SQLCMD_USER] : ["-E"];
+const ownerSqlcmd = (args) => execFileSync("sqlcmd", ["-S", "tcp:127.0.0.1,1433", ...sqlcmdLogin, "-C", "-b", "-d", "FirstSteps_Test", ...args], { stdio: "ignore" });
 const login = (await pool.request().query("SELECT SUSER_SNAME() AS LoginName, DB_NAME() AS Db")).recordset[0];
 console.log(`connected as ${login.LoginName} to ${login.Db}`);
 check("tests run with the application login, not an administrator", login.LoginName === "firststeps_app", login.LoginName);
@@ -113,7 +118,7 @@ check("audit: the event is unchanged afterwards", still?.Details === "{}");
 
 // 5. Verification backfill
 const before = (await pool.request().query("SELECT COUNT(*) AS N FROM dbo.Users WHERE EmailVerifiedAt IS NULL")).recordset[0].N;
-execFileSync("sqlcmd", ["-S", "tcp:127.0.0.1,1433", "-E", "-C", "-b", "-d", "FirstSteps_Test", "-i", "database/proposals/0006_security_infrastructure.sql"], { stdio: "ignore" });
+ownerSqlcmd(["-i", "database/migrations/0006_security_infrastructure.sql"]);
 const after = (await pool.request().query("SELECT COUNT(*) AS N FROM dbo.Users WHERE EmailVerifiedAt IS NULL")).recordset[0].N;
 check("migration re-run does not verify unverified accounts", after === before, `${before} unverified before, ${after} after`);
 // The seeded admin and mentor existed before 0006 and were backfilled as verified.
@@ -128,7 +133,7 @@ check("a new account starts unverified", fresh === null);
 await pool.request().input("p", sql.NVarChar(255), `qa+sec0006-%-${stamp}@example.invalid`).query("DELETE FROM dbo.Users WHERE Email LIKE @p");
 await pool.request().query("DELETE FROM dbo.Rate_Limit_Buckets WHERE Scope = 'sec0006'");
 await pool.close();
-execFileSync("sqlcmd", ["-S", "tcp:127.0.0.1,1433", "-E", "-C", "-b", "-d", "FirstSteps_Test", "-Q",
-  "ALTER TABLE dbo.Admin_Audit_Events DISABLE TRIGGER trg_AdminAuditEvents_AppendOnly; DELETE FROM dbo.Admin_Audit_Events WHERE Action = 'verify_0006'; ALTER TABLE dbo.Admin_Audit_Events ENABLE TRIGGER trg_AdminAuditEvents_AppendOnly;"], { stdio: "ignore" });
+ownerSqlcmd(["-Q",
+  "ALTER TABLE dbo.Admin_Audit_Events DISABLE TRIGGER trg_AdminAuditEvents_AppendOnly; DELETE FROM dbo.Admin_Audit_Events WHERE Action = 'verify_0006'; ALTER TABLE dbo.Admin_Audit_Events ENABLE TRIGGER trg_AdminAuditEvents_AppendOnly;"]);
 console.log(failed === 0 ? "ALL PASS" : `${failed} FAILED`);
 process.exitCode = failed === 0 ? 0 : 1;

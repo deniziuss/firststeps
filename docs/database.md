@@ -13,30 +13,62 @@
 
 The schema was originally built and tested for a university database course on a separate server. That server is not used by this project. The migration was checked against an SSMS export of the course database by applying it to an empty database and comparing catalogs: tables, columns, types, defaults, CHECK constraints, foreign keys and indexes are identical, and all trigger and procedure bodies match apart from formatting and comments.
 
-Schema changes are added as new numbered files in `database/migrations/`; existing migrations are not edited. Migrations `0003_prerequisite_applicability.sql` ([Issue 001](issues/001-prerequisite-satisfaction.md)) and `0004_session_version.sql` (persistent session revocation) were approved and applied to the local `FirstSteps_Dev` on 2026-11-09. Proposals waiting for a decision live in `database/proposals/` and are not run by setup (currently `0005_foreign_key_indexes.sql` and `0006_security_infrastructure.sql`); see [security.md](security.md).
+Schema changes are added as new numbered files in `database/migrations/`; existing migrations are not edited. Migrations `0003_prerequisite_applicability.sql` ([Issue 001](issues/001-prerequisite-satisfaction.md)) and `0004_session_version.sql` (persistent session revocation) were approved and applied to the local `FirstSteps_Dev` on 2026-11-09, and `0006_security_infrastructure.sql` on 2026-11-10. Proposals waiting for a decision live in `database/proposals/` and are not run by setup (currently `0005_foreign_key_indexes.sql`); see [security.md](security.md). Migrations 0001–0004 were re-run on a restored copy (`FirstSteps_RestoreTest`) without errors, and CI re-runs them on every pull request.
 
-### Proposal 0006: security infrastructure (tested, awaiting approval for FirstSteps_Dev)
+### Proposal 0005: one index (measured, awaiting approval)
+`database/tests/0005_measure.sql` builds a synthetic workload inside a rolled-back transaction (5,000 students, 90,000 journey tasks, 20,000 help requests) and compares logical reads without and with the indexes:
+
+| Index | Query | Without | With | Write cost | Recommendation |
+|---|---|---|---|---|---|
+| `Help_Requests (JourneyTaskID)` | Student's request list | 418 | 36 | help-request insert 4 → 6 reads | **Apply** (proposal narrowed to this index) |
+|  | Requests for one task | 418 | 2 |  |  |
+| `Journey_Tasks (TaskID)` | "Is this template used" (unused template) | 203 | 2 | new journey (18 tasks) 126 → 264 reads | Not now: the app never runs this query (templates are deactivated, not deleted) |
+| `Task_Dependencies (RequiredTaskID)` | Dependents of a template | 4 | 2 | negligible | Not needed: the table stays small |
+
+At pilot size none of this is measurable; it is a recommendation for growth. Not applied anywhere.
+
+### Migration 0006: security infrastructure (approved and applied to FirstSteps_Dev on 2026-11-10)
 The eight course tables keep their structure; `dbo.Users` gets one nullable column.
 
 | Object | Purpose | Keys and constraints | Retention |
 |---|---|---|---|
 | `dbo.Rate_Limit_Buckets` | Persistent fixed-window counters for sign-in, registration, password reset and verification resend | PK `BucketKey` (CHAR(64) HMAC; no email or IP stored), `CHECK Hits >= 0`, index on `WindowEndsAt` | Expired rows purged in batches of 500 |
 | `usp_RateLimit_Hit / _Peek / _Reset / _Purge` | Atomic count (UPDLOCK + HOLDLOCK), read, clear, purge | — | — |
-| `dbo.Users.EmailVerifiedAt` | When the owner confirmed the address (NULL = unverified) | Existing rows backfilled with `CreatedAt` once | — |
+| `dbo.Users.EmailVerifiedAt` | When the owner confirmed the address (NULL = unverified) | Accounts that exist when the column is created are backfilled with `CreatedAt`, in the same transaction as `ALTER TABLE`; later runs never backfill | — |
 | `dbo.Account_Tokens` | Single-use verification and reset tokens | FK `UserID` → Users **ON DELETE CASCADE**; `UNIQUE TokenHash` (SHA-256); `CHECK Purpose IN ('VerifyEmail','ResetPassword')`; `CHECK ExpiresAt > CreatedAt` | Removed with the user; used or expired rows can be purged later |
 | `dbo.Admin_Audit_Events` | Append-only record of administrative changes | FK `AdminUserID` → Users (no cascade: admins with history cannot be deleted); `UNIQUE EventUid`; indexes on time, entity and action; INSTEAD OF UPDATE/DELETE trigger | At least 365 days, enforced by the trigger and `usp_AdminAudit_Purge` (default 730) |
 
+**Backfill correction (2026-11-10).** The first version backfilled "if no account is verified yet". On a re-run against a database whose accounts were all unverified (for example right after a fresh install with new registrations), it would have marked every one of them verified. `database/tests/0006_rerun_unverified.sql` proves it: the old version verified 6 accounts, the fixed one 0. The fix ties the backfill to the creation of the column:
+- `ALTER TABLE … ADD EmailVerifiedAt` and the `UPDATE` run in one transaction (`XACT_ABORT ON`), only when the column does not exist yet;
+- an interrupted run rolls both back, so the next run starts clean;
+- on an empty database the backfill updates nothing.
+
+`database/tests/0006_idempotency.sql` checks the scenarios in one rolled-back transaction, 9/9 PASS on `FirstSteps_Test` and `FirstSteps_RestoreTest`, and in CI:
+1. existing accounts are backfilled;
+2. an empty database works;
+3. a new registration stays unverified after a re-run;
+4. an earlier verification time is unchanged;
+5. a third run changes nothing, and every object exists exactly once;
+6. an interrupted run leaves no column;
+7. 0003 and 0004 are untouched.
+
 **Testing**
-- Applied to `FirstSteps_Test`, a restore of a verified backup; running it twice is harmless.
+- Applied to `FirstSteps_Test`, a restore of a verified backup; running it again is harmless (CI re-runs all migrations and 0006).
 - `database/tests/0006_verify.sql`: 11/11 PASS (rolled back).
 - `04_verify.sql` passes on the same database.
-- The CI job applies all migrations plus 0006 to a fresh container.
+- The CI job applies all migrations to a fresh container and runs them a second time.
 
-**Applying it to FirstSteps_Dev (after approval)**
-1. Run `scripts/db/backup-dev.ps1`.
-2. Run `sqlcmd -S tcp:127.0.0.1,1433 -E -C -b -d FirstSteps_Dev -i database/proposals/0006_security_infrastructure.sql`.
-3. Move the file to `database/migrations/`.
-4. Run `0006_verify.sql` and the E2E suite against `FirstSteps_Dev`.
+**Applied to FirstSteps_Dev (2026-11-10, approved by the owner)**
+1. Backup `FirstSteps_Dev_20261110_013902.bak` with `scripts/db/backup-dev.ps1`, verified with `RESTORE VERIFYONLY`. `restore-test.ps1` passed: identical schema, equal counts.
+2. `sqlcmd -S tcp:127.0.0.1,1433 -E -C -b -d FirstSteps_Dev -i database/migrations/0006_security_infrastructure.sql` finished with exit code 0. All 9 objects exist, and the 4 existing accounts have `EmailVerifiedAt = CreatedAt`.
+3. Checks on `FirstSteps_Dev`:
+   - `0006_verify.sql` 11/11;
+   - `04_verify.sql` 12/12;
+   - `npm run test:db` 19/19;
+   - a second run of the migration changed nothing (same timestamps, no rows created);
+   - `/api/ready` 200 with the app login.
+4. The schema fingerprint of `FirstSteps_Dev` equals that of `FirstSteps_Test`, where the full E2E suite passed twice. The E2E suite was not run against `FirstSteps_Dev`: its admin tests would leave permanent rows in the append-only audit log.
+5. The file moved from `database/proposals/` to `database/migrations/`, so `npm run db:local:setup` now applies it to new local databases.
 
 **Rollback:** `database/rollbacks/0006_rollback.sql`. It deletes the audit history; export it first if it must be kept.
 

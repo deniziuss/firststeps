@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { Browser, Page, Route } from "@playwright/test";
 import { BASE_URL, expect, test } from "./fixtures";
 import { adminCredentials, button, createJourney, formAlert, PASSWORD, ready, register, signIn, signOut, uniqueEmail } from "./helpers";
@@ -129,6 +130,33 @@ test("a student cannot change another student's journey or task by tampering wit
   await contextB.close();
 });
 
+test("the data export contains only the signed-in student's own data and no secrets", async ({ page, browser, request }) => {
+  expect((await request.get("/api/account/export")).status()).toBe(401);
+  const otherEmail = uniqueEmail("e2e");
+  const other = await browser.newContext({ baseURL: BASE_URL });
+  await other.addCookies([{ name: "fs_locale", value: "en", url: `${BASE_URL}/` }]);
+  const otherPage = await other.newPage();
+  await register(otherPage, "Olga", otherEmail);
+  await createJourney(otherPage, { arrival: "2027-04-02" });
+  await other.close();
+
+  const email = uniqueEmail("e2e");
+  await register(page, "Petra", email);
+  const journeyId = await createJourney(page, { arrival: "2027-04-01" });
+  await page.goto("/settings");
+  const download = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Download my data (JSON)" }).click();
+  const file = await (await download).path();
+  const text = readFileSync(file, "utf8");
+  const data = JSON.parse(text);
+  expect(data.account.email).toBe(email);
+  expect(data.journeys.map((j: { journeyId: number }) => j.journeyId)).toEqual([journeyId]);
+  expect(data.tasks.length).toBeGreaterThan(0);
+  expect(data.tasks.every((t: { journeyId: number }) => t.journeyId === journeyId)).toBe(true);
+  expect(text).not.toContain(otherEmail);
+  expect(text).not.toMatch(/argon2|PasswordHash|SessionVersion|TokenHash/i);
+});
+
 test("HTML typed into a help request is shown as text, never rendered", async ({ page }) => {
   await register(page, "Hana", uniqueEmail("sec-html"));
   await createJourney(page, { arrival: "2027-04-01" });
@@ -173,6 +201,25 @@ test("security headers are sent on every page", async ({ request }) => {
     expect(headers["strict-transport-security"], path).toContain("max-age=");
     expect(headers["x-powered-by"], path).toBeUndefined();
   }
+});
+
+test("metrics need the bearer token and count failed sign-ins without personal data", async ({ page, request }) => {
+  expect((await request.get("/api/metrics")).status()).toBe(401);
+  expect((await request.get("/api/metrics", { headers: { Authorization: "Bearer wrong-token-wrong-token-wrong-token" } })).status()).toBe(401);
+  const email = uniqueEmail("e2e");
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("not-the-password-1");
+  await button(page, "Sign in").click();
+  await expect(formAlert(page)).toBeVisible();
+  const response = await request.get("/api/metrics", { headers: { Authorization: `Bearer ${process.env.METRICS_TOKEN}` } });
+  expect(response.status()).toBe(200);
+  const text = await response.text();
+  expect(text).toMatch(/firststeps_log_events_total\{level="info",category="auth",event="sign_in_failed"\} [1-9]/);
+  expect(text).toContain("firststeps_db_statement_duration_ms_count");
+  expect(text).toContain('firststeps_db_pool_connections{state="in_use"}');
+  expect(text).not.toContain(email);
+  expect(text).not.toContain("@");
 });
 
 test("out-of-range and malformed ids are 'not found', never a server error", async ({ page }) => {
