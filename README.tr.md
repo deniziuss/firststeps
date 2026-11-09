@@ -68,6 +68,13 @@ Aşağıdakilerin hepsi uygulanmış ve testlerle kapsanmıştır (bkz. [docs/te
   - Sağlık ve hazırlık uç noktaları, yapılandırılmış loglar, doğrulanmış yedekler ve geri yükleme testleri.
   - Ayrıntılar: [docs/email.md](docs/email.md), [docs/operations.md](docs/operations.md).
   - Tablolar proposal 0006'da; ayrı bir test kopyasında denendi, geliştirme veritabanına uygulanması onay bekliyor.
+- **İşletim ve gizlilik:**
+  - TLS ve yeniden denemeli SMTP gönderimi (bir sağlayıcıya bağlı değil).
+  - Metrikler ve yerel sağlık/alarm kontrolü.
+  - Şemayı karşılaştıran geri yükleme testleriyle doğrulanmış yedekler ve sınırlı veritabanı bakımı.
+  - Ayarlar'da kişisel veri dışa aktarımı ve denetim kaydı bırakan bir anonimleştirme betiği.
+  - Hazırlandı, yayına alınmadı: ters vekil (reverse proxy) yapılandırmaları ve zamanlanmış görevler.
+  - Ayrıntılar: [docs/operations.md](docs/operations.md), [docs/privacy.md](docs/privacy.md).
 - **Arayüz:**
   - Doğal bir renk paleti: koyu orman yeşili, orman yeşili, sıcak fildişi, okr altını, sıcak boz.
   - Açık ve koyu tema.
