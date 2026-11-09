@@ -10,7 +10,8 @@ import { clientAddress } from "../client-ip";
 import { hashPassword, verifyPassword } from "../password";
 import { resetTokens, takeToken } from "../rateLimit";
 import * as users from "../repositories/users";
-import { createSession, deleteSession } from "../session";
+import { logError } from "../log";
+import { createSession, deleteSession, readSession } from "../session";
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
@@ -38,7 +39,8 @@ export async function register(_: ActionResult | undefined, formData: FormData):
     // Database unavailable or another unexpected failure: logged, and the form keeps its values.
     return { ok: false, error: t(toAppError(error).key) };
   }
-  await createSession(userId, passwordHash);
+  // A new account starts at SessionVersion 0 (column default).
+  await createSession(userId, passwordHash, 0);
   redirect("/onboarding");
 }
 
@@ -62,11 +64,21 @@ export async function signIn(_: ActionResult | undefined, formData: FormData): P
   if (!account || !valid || !account.IsActive) return { ok: false, error: t("auth.wrongCredentials") };
 
   resetTokens(key);
-  await createSession(account.UserID, account.PasswordHash);
+  await createSession(account.UserID, account.PasswordHash, account.SessionVersion);
   redirect(HOME_BY_ROLE[account.UserRole]);
 }
 
+// Signs the account out on every device: the version bump invalidates all of its tokens, also
+// after a server restart. The cookie is removed even if the database cannot be reached.
 export async function signOut() {
+  const session = await readSession();
+  if (session) {
+    try {
+      await users.bumpSessionVersion(session.userId);
+    } catch (error) {
+      logError("sign_out_revocation_failed", error, { userId: session.userId });
+    }
+  }
   await deleteSession();
   redirect("/sign-in");
 }
@@ -94,9 +106,9 @@ export async function changePassword(_: ActionResult | undefined, formData: Form
     return { ok: false, error: t("settings.wrongPassword"), fieldErrors: { currentPassword: [t("settings.wrongPassword")] } };
   }
   const newHash = await hashPassword(parsed.data.newPassword);
-  await users.updatePasswordHash(user.id, newHash);
+  const version = await users.updatePasswordHash(user.id, newHash);
   resetTokens(key);
-  // The new hash invalidates every older session of this account; this browser gets a fresh one.
-  await createSession(user.id, newHash);
+  // The version bump ends every other session of this account; this browser gets a fresh token.
+  await createSession(user.id, newHash, version);
   return { ok: true, message: t("settings.passwordChanged") };
 }

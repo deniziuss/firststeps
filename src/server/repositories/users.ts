@@ -20,14 +20,14 @@ export function findUserById(userId: number) {
 
 // Only for session checks in dal.ts: the password hash never leaves the server layer.
 export function findSessionUser(userId: number) {
-  return queryOne<UserRecord & { PasswordHash: string }>(`SELECT ${USER_COLUMNS}, PasswordHash FROM dbo.Users WHERE UserID = @userId`, {
+  return queryOne<UserRecord & { PasswordHash: string; SessionVersion: number }>(`SELECT ${USER_COLUMNS}, PasswordHash, SessionVersion FROM dbo.Users WHERE UserID = @userId`, {
     userId: [sql.Int, userId],
   });
 }
 
 export function findCredentialsByEmail(email: string) {
-  return queryOne<{ UserID: number; PasswordHash: string; IsActive: boolean; UserRole: UserRole }>(
-    "SELECT UserID, PasswordHash, IsActive, UserRole FROM dbo.Users WHERE Email = @email",
+  return queryOne<{ UserID: number; PasswordHash: string; IsActive: boolean; UserRole: UserRole; SessionVersion: number }>(
+    "SELECT UserID, PasswordHash, IsActive, UserRole, SessionVersion FROM dbo.Users WHERE Email = @email",
     { email: [sql.NVarChar(255), email] },
   );
 }
@@ -59,11 +59,27 @@ export function updateProfile(userId: number, firstName: string, lastName: strin
   });
 }
 
+// Session versions (migration 0004): every token carries the version it was issued with, and a
+// token whose version differs from the row is rejected. Increments are single atomic statements,
+// so concurrent sign-outs or password changes can never reuse a version.
+
+/** Signs the account out everywhere. Returns the new version, or undefined for an unknown user. */
+export async function bumpSessionVersion(userId: number) {
+  const row = await queryOne<{ SessionVersion: number }>(
+    "UPDATE dbo.Users SET SessionVersion = SessionVersion + 1 OUTPUT inserted.SessionVersion WHERE UserID = @userId",
+    { userId: [sql.Int, userId] },
+  );
+  return row?.SessionVersion;
+}
+
+/** Stores the new hash and invalidates every existing session in the same statement. */
 export async function updatePasswordHash(userId: number, passwordHash: string) {
-  return execute("UPDATE dbo.Users SET PasswordHash = @passwordHash WHERE UserID = @userId", {
-    userId: [sql.Int, userId],
-    passwordHash: [sql.NVarChar(255), passwordHash],
-  });
+  const row = await queryOne<{ SessionVersion: number }>(
+    "UPDATE dbo.Users SET PasswordHash = @passwordHash, SessionVersion = SessionVersion + 1 OUTPUT inserted.SessionVersion WHERE UserID = @userId",
+    { userId: [sql.Int, userId], passwordHash: [sql.NVarChar(255), passwordHash] },
+  );
+  if (!row) throw new Error("User not found while changing the password");
+  return row.SessionVersion;
 }
 
 // Admin views never select PasswordHash. Paged, because the user table grows with every student.
@@ -98,8 +114,13 @@ export function listActiveMentors() {
   );
 }
 
+// A role or active-state change also ends the user's sessions; saving unchanged values does not.
 export function setUserRoleAndStatus(userId: number, role: UserRole, isActive: boolean) {
-  return execute("UPDATE dbo.Users SET UserRole = @role, IsActive = @isActive WHERE UserID = @userId", {
+  return execute(
+    `UPDATE dbo.Users
+        SET SessionVersion = SessionVersion + CASE WHEN UserRole <> @role OR IsActive <> @isActive THEN 1 ELSE 0 END,
+            UserRole = @role, IsActive = @isActive
+      WHERE UserID = @userId`, {
     userId: [sql.Int, userId],
     role: [sql.NVarChar(20), role],
     isActive: [sql.Bit, isActive],
