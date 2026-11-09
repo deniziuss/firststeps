@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { Browser, Page, Route } from "@playwright/test";
 import { BASE_URL, expect, test } from "./fixtures";
 import { adminCredentials, button, createJourney, formAlert, PASSWORD, ready, register, signIn, signOut, uniqueEmail } from "./helpers";
@@ -127,6 +128,33 @@ test("a student cannot change another student's journey or task by tampering wit
   await expect(pageB.getByRole("heading", { name: "Page not found" })).toBeVisible();
   expect(journeyB).not.toBe(journeyA);
   await contextB.close();
+});
+
+test("the data export contains only the signed-in student's own data and no secrets", async ({ page, browser, request }) => {
+  expect((await request.get("/api/account/export")).status()).toBe(401);
+  const otherEmail = uniqueEmail("e2e");
+  const other = await browser.newContext({ baseURL: BASE_URL });
+  await other.addCookies([{ name: "fs_locale", value: "en", url: `${BASE_URL}/` }]);
+  const otherPage = await other.newPage();
+  await register(otherPage, "Olga", otherEmail);
+  await createJourney(otherPage, { arrival: "2027-04-02" });
+  await other.close();
+
+  const email = uniqueEmail("e2e");
+  await register(page, "Petra", email);
+  const journeyId = await createJourney(page, { arrival: "2027-04-01" });
+  await page.goto("/settings");
+  const download = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Download my data (JSON)" }).click();
+  const file = await (await download).path();
+  const text = readFileSync(file, "utf8");
+  const data = JSON.parse(text);
+  expect(data.account.email).toBe(email);
+  expect(data.journeys.map((j: { journeyId: number }) => j.journeyId)).toEqual([journeyId]);
+  expect(data.tasks.length).toBeGreaterThan(0);
+  expect(data.tasks.every((t: { journeyId: number }) => t.journeyId === journeyId)).toBe(true);
+  expect(text).not.toContain(otherEmail);
+  expect(text).not.toMatch(/argon2|PasswordHash|SessionVersion|TokenHash/i);
 });
 
 test("HTML typed into a help request is shown as text, never rendered", async ({ page }) => {

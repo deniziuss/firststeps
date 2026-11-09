@@ -26,6 +26,8 @@ export const AUDIT_ACTIONS = [
   "source_status",
   "source_delete",
   "mentor_assign",
+  // Written by scripts/privacy/anonymize-account.mjs (an administrator runs it on request).
+  "user_anonymize",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 export const AUDIT_ENTITIES = ["User", "University", "TaskTemplate", "Dependency", "InformationSource", "HelpRequest"] as const;

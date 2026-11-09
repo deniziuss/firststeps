@@ -463,6 +463,10 @@ export const en = {
     appearanceText: "Choose light, dark or your device setting. Saved in this browser.",
     language: "Language",
     languageText: "Choose the language of FirstSteps. Saved for your next visits.",
+    data: "Your data",
+    dataText: "Download a copy of the information FirstSteps stores about your account: profile, journeys, tasks and help requests. Your password and session data are never included.",
+    exportData: "Download my data (JSON)",
+    deletionText: "To delete your account, contact the FirstSteps team. Your name and email address are then removed and your journeys and help requests are anonymised.",
   },
   mentor: {
     title: "Assigned requests",
@@ -664,6 +668,7 @@ export const en = {
         source_status: "Source status changed",
         source_delete: "Source deleted",
         mentor_assign: "Mentor assigned",
+        user_anonymize: "Account anonymised",
       },
       entities: {
         User: "User",

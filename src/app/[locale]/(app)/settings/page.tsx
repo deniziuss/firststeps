@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/page";
 import { LanguageSwitcher, ThemeToggle } from "@/components/theme";
+import { buttonVariants } from "@/components/ui/button";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/server/dal";
 import { PasswordForm, ProfileForm } from "./settings-forms";
@@ -45,6 +46,13 @@ export default async function SettingsPage() {
       </Panel>
       <Panel id="password" title={t("settings.password")}>
         <PasswordForm />
+      </Panel>
+      <Panel id="data" title={t("settings.data")} text={t("settings.dataText")}>
+        {/* A plain link: the route answers with a JSON download for the signed-in account only. */}
+        <a href="/api/account/export" download className={buttonVariants({ variant: "outline", className: "w-fit" })}>
+          {t("settings.exportData")}
+        </a>
+        <p className="text-sm text-muted-foreground">{t("settings.deletionText")}</p>
       </Panel>
     </div>
   );

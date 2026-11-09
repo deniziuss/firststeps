@@ -464,6 +464,10 @@ export const tr: Messages = {
     appearanceText: "Açık, koyu veya cihazının ayarını seç. Bu tarayıcıda saklanır.",
     language: "Dil",
     languageText: "FirstSteps'in dilini seç. Sonraki ziyaretlerin için de hatırlanır.",
+    data: "Verilerin",
+    dataText: "FirstSteps'in hesabınla ilgili sakladığı bilgilerin bir kopyasını indir: profil, yolculuklar, görevler ve yardım talepleri. Şifren ve oturum verilerin hiçbir zaman dahil edilmez.",
+    exportData: "Verilerimi indir (JSON)",
+    deletionText: "Hesabını sildirmek için FirstSteps ekibiyle iletişime geç. Adın ve e-posta adresin silinir; yolculukların ve yardım taleplerin anonimleştirilir.",
   },
   mentor: {
     title: "Bana atanan talepler",
@@ -665,6 +669,7 @@ export const tr: Messages = {
         source_status: "Kaynak durumu değişti",
         source_delete: "Kaynak silindi",
         mentor_assign: "Mentor atandı",
+        user_anonymize: "Hesap anonimleştirildi",
       },
       entities: {
         User: "Kullanıcı",
