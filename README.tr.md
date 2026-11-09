@@ -29,6 +29,7 @@ Aşağıdakilerin hepsi uygulanmış ve testlerle kapsanmıştır (bkz. [docs/te
   - Görevler başka görevlere bağlı olabilir; kilitli görevler neyi beklediklerini açıklar.
   - Bağlı bir görev tamamlanmışken, ön koşulu olan görev yeniden açılamaz.
   - Yöneticiler döngüsel bağımlılık oluşturamaz.
+  - Öğrenciyi kapsamayan bir ön koşul (başka program veya konaklama durumu ya da plan değişikliğinden sonra *Gerekmiyor*) görevi kilitlemez; veritabanı trigger'ı ve uygulama aynı kuralı izler.
   - Yolculuk oluşturulduktan sonra eklenen bir ön koşul, *Planımı güncelle* ile plana eklenir.
 - **Plan güncellemeleri:** Konaklama durumu değişince yolculuk yeniden planlanır:
   - yeni görevler eklenir,
@@ -160,6 +161,7 @@ Bkz. [`.env.example`](.env.example). `DB_SERVER` yerel bir adres ve `DB_NAME` de
 | `npm run build` | Production build |
 | `npm run test:e2e` | Yerel production build'e karşı Playwright uçtan uca testleri. Kapsam: İngilizce ve Türkçe öğrenci, mentor ve yönetici akışları, dil değiştirme, erişilebilirlik. Yerel veritabanı, tohum kullanıcılar ve Microsoft Edge gerekir. Çalıştırma sonunda kendi oluşturduğu sentetik kayıtları siler; saklamak için `E2E_KEEP_DATA=1` kullan |
 | `npm run db:local:setup` | `database/local/04_verify.sql` dosyasını da çalıştırır: nesne sayıları ve trigger/procedure davranışı; değişiklikler geri alınır |
+| `npm run test:db` | Ön koşul kuralı eşleşmesi: aynı durumlar hem SQL trigger'ında (yerel `FirstSteps_Dev`, geri alınır) hem TypeScript motorunda denenir |
 | `npm run db:cleanup-test-data` | `FirstSteps_Dev` içindeki sentetik test kayıtlarını yalnızca listeler (deneme çalıştırması). `-- --apply` bunları siler, `-- --self-test` güvenlik kurallarını kontrol eder. Yalnızca `@example.invalid` adresli `e2e+`/`sweep+`… öğrenciler ve pasif `E2E …` şablonları eşleşir |
 
 GitHub Actions her push ve pull request'te kurulum, typecheck, lint, birim testleri ve production build adımlarını çalıştırır. Veritabanına bağlı testler ve uçtan uca testler şimdilik yalnızca yerelde çalışır.
@@ -187,7 +189,6 @@ Yukarıda listelenen tüm modüller uygulanmış ve yerelde test edilmiştir. G�
 
 Bilinen açık konular:
 
-- Öğrenciyi kapsamayan bir ön koşul, bağlı görevi hâlâ kilitli tutar. Bunun için bir trigger değişikliği önerildi ve karar bekliyor ([docs/issues/001](docs/issues/001-prerequisite-satisfaction.md)). Sonradan eklendiği için yolculukta eksik kalan bir ön koşul ise *Planımı güncelle* ile zaten onarılıyor.
 - Görev ve kaynak metinleri sentetik taslaklardır; tüm kaynaklar hâlâ *Henüz incelenmedi* durumundadır.
 
 Planlanan ancak henüz uygulanmayanlar:

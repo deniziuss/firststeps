@@ -69,6 +69,8 @@ Safety rules of the cleanup:
 
 Round 2 (`fix/comprehensive-security-performance`): unit 67/67 (adds trusted-proxy parsing); E2E 33/33 in two consecutive full runs, with a new test that out-of-range and malformed ids are "not found". Database outage behaviour: `scripts/probe-db-down.mjs` against a server with `DB_PORT=1` (the database is not contacted).
 
+Round 3 (migrations 0003 and 0004): `npm run test:db` runs the SQL ↔ TypeScript prerequisite parity (9 cases, each in a rolled-back transaction, local `FirstSteps_Dev` only); `node --env-file=.env.local scripts/test-session-restart.mjs` checks that sign-out revocation survives a server restart; `database/rollbacks/rehearse_rollback.sql` rehearses both rollbacks inside a rolled-back transaction.
+
 Findings and their status: [security.md](security.md).
 
 ## Document title

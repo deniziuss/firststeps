@@ -45,7 +45,7 @@ Prisma is compatible, but lost defaults on introspection, error numbers only as 
 - Every page and server action starts with `requireUser` / `requireRole`. Student queries filter by `UserID`, so another student's record is "not found". Mentors only see requests where `MentorUserID` is their own id and only the student's first name and task context.
 - Server actions are protected against CSRF by Next.js origin checks.
 - In-memory rate limits: sign-in 5 per 15 min per email, registration 5 per email plus 30 overall per 15 min, password change 5 per 15 min. `X-Forwarded-For` is only used when `TRUST_PROXY=true`, and then only the entry added by the trusted proxy (`TRUST_PROXY_HOPS` from the right, `server/client-ip.ts`).
-- Sessions: HS256 JWT in an HttpOnly cookie, 24 h lifetime, with a `jti` (revoked on sign-out, in process memory until proposal 0004) and a keyed password fingerprint (a password change invalidates older tokens). Role and active state are read from the database on every request.
+- Sessions: HS256 JWT in an HttpOnly cookie, 24 h lifetime. The token carries `sv` (the account's `SessionVersion`, migration 0004) and a keyed password fingerprint. Sign-out (on every device), a password change and an admin role/status change increment the version, so older tokens are rejected even after a restart. Role and active state are read from the database on every request.
 - Ids from URLs and forms are parsed with `lib/ids.ts` (SQL INT range); out-of-range values are "not found".
 - Errors: translated error boundaries (`error.tsx`, `global-error.tsx`); unexpected server errors are logged as one JSON line by `server/log.ts` (no secrets, emails masked).
 - Security headers and CSP: `next.config.ts`; details in [security.md](security.md).

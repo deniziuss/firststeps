@@ -23,7 +23,7 @@ Status labels: **Fixed and verified**, **Verified, no issue found**, **Open issu
 | ID | Severity | Area | Where | Evidence | Root cause | Fix | Regression test | Status |
 |---|---|---|---|---|---|---|---|---|
 | SEC-01 | High | Sessions | `src/server/session.ts`, `actions/auth.ts` | Copying the `fs_session` cookie before sign-out still gave access after sign-out (stateless JWT, 7-day expiry) | Sign-out only deleted the cookie in the browser | Each token has a `jti`; sign-out revokes it on the server (in-process list until expiry). Lifetime reduced to 24 h | `security.spec.ts` › "revoked on sign-out" | Fixed and verified (single process; see SEC-01b) |
-| SEC-01b | Medium | Sessions | same | The revocation list is in memory: lost on restart, not shared by several instances | No session state in the database | Proposal `database/proposals/0004_session_version.sql` (`Users.SessionVersion`) | — | Requires approval |
+| SEC-01b | Medium | Sessions | same | The revocation list is in memory: lost on restart, not shared by several instances | No session state in the database | Migration 0004 (`Users.SessionVersion`), applied 2026-11-09 after approval; see round 3 | `security.spec.ts` (sign-out, every device), `scripts/test-session-restart.mjs` | Fixed and verified |
 | SEC-02 | High | Sessions | `dal.ts`, `actions/auth.ts` | After a password change, a session on another device stayed valid | Token held only the user id | Token holds `pv`, an HMAC of the stored password hash; `getCurrentUser` rejects mismatches. The current browser receives a fresh session | `security.spec.ts` › "changing the password signs out other sessions" | Fixed and verified |
 | SEC-03 | Medium | Output / links | `lib/validation.ts`, source and university links | `z.url()` accepted `javascript:alert(1)` and `data:` URLs (unit check). React 19 blocks `javascript:` hrefs at render time, so no script ran | Validation allowed any scheme | Only `http`/`https` accepted; every database link is rendered through `safeHref()` | Unit (`action-guards.test.ts`), E2E › "cannot store javascript: or data: links" | Fixed and verified |
 | SEC-04 | Medium | Headers | `next.config.ts` | No CSP, HSTS or COOP header | Not configured | Added CSP (`default-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`), HSTS in production, COOP `same-origin` | E2E › "security headers"; all E2E and axe suites pass with the policy | Fixed and verified |
@@ -45,7 +45,7 @@ Status labels: **Fixed and verified**, **Verified, no issue found**, **Open issu
 | FUN-02 | Low | Admin users | `admin/users/page.tsx`, `repositories/users.ts` | Unpaged list of all accounts | — | 50 per page with counts, previous/next links, empty message | Accessibility suite covers the page | Fixed and verified |
 | FUN-03 | Low | Admin users | `actions/admin.ts` › `saveUser` | An unknown user id reported "saved" | Affected rows ignored | "User not found." | Typecheck | Fixed |
 | FUN-04 | Low | Titles | mentor request and admin template pages | Generic browser titles | — | Title names the request/template, using the same authorization as the page | Manual | Fixed |
-| BR-01 | — | Business rules | Issue 001 / proposal 0003 | See below | — | — | `04_verify.sql` 10/10, `0003_test_rolled_back.sql` 5/5, unit 36 | Requires approval |
+| BR-01 | — | Business rules | Issue 001 / proposal 0003 | See below | — | Migration 0003, applied 2026-11-09 after approval | `prerequisite-parity.test.ts`, `prerequisite-rule.spec.ts` | Fixed and verified |
 
 ## Round 2 findings (branch `fix/comprehensive-security-performance`)
 
@@ -62,15 +62,50 @@ Status labels: **Fixed and verified**, **Verified, no issue found**, **Open issu
 | SEC-20 | — | CSP | `next.config.ts` | A nonce-based CSP requires dynamic rendering of every page, which removes Partial Prerendering | Framework constraint | Kept the current policy with `'unsafe-inline'`; documented | — | Open issue (SEC-05) |
 | PERF-01 | — | Performance | All pages | TTFB 4–5 ms, load 43–63 ms on signed-in pages; landing LCP 232/384 ms | — | No change needed ([performance.md](performance.md)) | `scripts/perf*.mjs` | Verified, no issue found |
 | DB-01 | Low | Indexes | `Help_Requests.JourneyTaskID`, `Task_Dependencies.RequiredTaskID`, `Journey_Tasks.TaskID` | Foreign keys without an index (not measurable at pilot size) | — | Proposal 0005 | — | Requires approval |
-| BR-01 | Medium | Business rules | Trigger and `unmetPrerequisites` / `checkTransition` | The seed data contains the Issue 001 case: task 16 requires task 1, which applies only to Erasmus students, so a non-Erasmus student can never complete task 16 | Strict trigger rule | Proposal 0003 plus application changes | — | Requires approval |
-| SEC-01b | Medium | Sessions | `session.ts` | Sign-out revocation lives in process memory | — | Proposal 0004 plus application changes | — | Requires approval |
+| BR-01 | Medium | Business rules | Trigger and `unmetPrerequisites` / `checkTransition` | A dependency whose prerequisite applies to fewer students than the dependent task locked it permanently for the others. This happened after an admin added such a dependency (the form warned about it) or after a housing change marked the prerequisite *Not needed*. **Correction:** an earlier version of this register said the seed data already contained such a case (task 16 → task 1). That was wrong: task 16 itself applies only to Erasmus students, so it never reaches a student without task 1 | Strict trigger rule | Migration 0003 plus application changes (round 3) | `prerequisite-rule.spec.ts`, parity tests | Fixed and verified |
+| SEC-01b | Medium | Sessions | `session.ts` | Sign-out revocation lived in process memory | — | Migration 0004 plus application changes (round 3) | Restart test | Fixed and verified |
 
-## Pending schema changes (prepared, not applied)
+## Round 3: migrations 0003 and 0004 (approved and applied, 2026-11-09)
+
+**Applied only to the local `FirstSteps_Dev`** (`DenizSQLEXPRESS`), after a verified copy-only backup. The backup was made with `scripts/db/backup-dev.ps1` and checked with `RESTORE VERIFYONLY`; the file is in the instance backup folder, outside the repository. The school server was not contacted.
+
+| Step | Result |
+|---|---|
+| `0003_prerequisite_applicability.sql` | Applied; the live trigger checks template applicability |
+| `0004_session_version.sql` | Applied; `SessionVersion` added with `DF_Users_SessionVersion` and `CK_Users_SessionVersion`; existing rows set to 0, no other values changed |
+| `04_verify.sql` | 12/12 PASS (two new migration checks) |
+| Rollback rehearsal (`database/rollbacks/rehearse_rollback.sql`): roll back 0004 and 0003, re-apply both, all in one transaction that is then rolled back | PASS. It also found that `0003` lacked a final `GO`, so the next script run in the same `sqlcmd` session would have become part of the trigger body. The live trigger was checked (clean), and the file is fixed |
+| SQL ↔ TypeScript parity (`npm run test:db`): 9 cases (completed; NotApplicable row; absent because of housing, programme or an inactive template; applicable but absent; Pending, InProgress or Blocked) | Trigger and engine agree on all 9 |
+
+**Application changes:**
+- **0003:**
+  - `unmetPrerequisites` treats NotApplicable and genuinely irrelevant prerequisites as satisfied.
+  - `checkTransition` receives the journey applicability.
+  - The "not part of your plan" message and alert are removed.
+  - The admin gap warning now says the prerequisite is skipped for those students.
+- **0004:**
+  - Tokens carry `sv`.
+  - Sign-out, a password change and an admin role or status change increment the version atomically. An unchanged admin save does not.
+  - The in-memory revocation list is removed; the password fingerprint `pv` is kept as a second check.
+  - **Sign-out ends the sessions on every device of the account.**
+
+**Tests:**
+- `security.spec.ts`: sign-out on one device signs out the others; an admin role or status change ends sessions; existing session tests.
+- `prerequisite-rule.spec.ts`: never-added prerequisite; housing change.
+- `scripts/test-session-restart.mjs`: a revoked cookie is rejected after a restart, and a later session survives it.
+
+## Proposal still pending
 
 | File | Change | Data impact | Rollback |
 |---|---|---|---|
-| `database/proposals/0003_prerequisite_applicability.sql` | Prerequisite trigger: Completed, NotApplicable and genuinely irrelevant prerequisites count as satisfied | None (affects future completions only) | `database/rollbacks/0003_rollback.sql` |
-| `database/proposals/0004_session_version.sql` | `Users.SessionVersion INT NOT NULL DEFAULT 0`, check `>= 0` | No values change; every user signs in once again after deployment | `database/rollbacks/0004_rollback.sql` |
+| `database/proposals/0005_foreign_key_indexes.sql` | Three foreign-key indexes | None | Drop the three indexes |
+
+## Pending schema changes (round 2 plan, kept for reference)
+
+| File | Change | Data impact | Rollback |
+|---|---|---|---|
+| `database/migrations/0003_prerequisite_applicability.sql` (applied) | Prerequisite trigger: Completed, NotApplicable and genuinely irrelevant prerequisites count as satisfied | None (affects future completions only) | `database/rollbacks/0003_rollback.sql` |
+| `database/migrations/0004_session_version.sql` (applied) | `Users.SessionVersion INT NOT NULL DEFAULT 0`, check `>= 0` | No values change; every user signs in once again after deployment | `database/rollbacks/0004_rollback.sql` |
 | `database/proposals/0005_foreign_key_indexes.sql` | Three foreign-key indexes | None | Drop the three indexes |
 
 **Before applying:**
@@ -88,7 +123,7 @@ There are three different cases:
 2. **Genuinely does not apply** (no row and the template does not match the profile, or a `NotApplicable` row). Should count as satisfied.
 3. **Exists but is incomplete.** Blocks.
 
-Recommended rule: apply proposal 0003 and the matching change in `unmetPrerequisites`. The rolled-back test passes all cases. It was **not applied**, because changing the trigger needs approval.
+Implemented: migration 0003 and the matching application rule, approved and applied on 2026-11-09 (round 3).
 
 ## Readiness assessment
 
@@ -102,14 +137,12 @@ Recommended rule: apply proposal 0003 and the matching change in `unmetPrerequis
 - axe-clean pages, responsive layouts, reduced-motion support.
 
 **Needs attention before any public deployment:**
-- Persistent session revocation (proposal 0004).
 - A shared rate-limit store and a trusted client IP.
 - HTTPS termination.
 - Email verification and password reset.
 - Admin audit trail.
 - Backups and monitoring.
 - Real, reviewed content: every source is still *Review pending*.
-- A decision on proposal 0003.
 - A manual screen-reader pass.
 - A nonce-based CSP.
 - Database tests in CI with a disposable SQL Server container.
@@ -123,7 +156,7 @@ Recommended rule: apply proposal 0003 and the matching change in `unmetPrerequis
 | HTTPS, Secure cookie, HSTS | Cookie `Secure` and HSTS in production builds — **done**; TLS termination is a hosting task — **open** |
 | Reverse proxy | `TRUST_PROXY` and `TRUST_PROXY_HOPS` read the correct client address — **configure per host** |
 | Rate limiting | Per process, in memory — **needs a shared store for more than one instance** |
-| Session invalidation | Password change: persistent. Sign-out: persistent only after proposal 0004 — **requires approval** |
+| Session invalidation | Sign-out, password change and admin role/status change: persistent through `SessionVersion` (survives restarts, shared by instances) — **done** |
 | Database least privilege | App login can only read, write and execute, no DDL — **done** |
 | Backups | Copy-only backup script with verification — **done locally**; scheduled backups and a tested restore on the host — **open** |
 | Logging and monitoring | Structured error lines on stdout — **done**; log shipping, alerting and uptime checks — **open** |
@@ -138,7 +171,7 @@ Recommended rule: apply proposal 0003 and the matching change in `unmetPrerequis
 | Use | Ready? |
 |---|---|
 | Local demonstration | **Yes** |
-| Controlled pilot (one instance, known users, HTTPS terminated by the host) | **After** proposals 0003 and 0004 are applied, an HTTPS host is set up and backups are scheduled |
+| Controlled pilot (one instance, known users, HTTPS terminated by the host) | **After** an HTTPS host is set up and backups are scheduled (0003 and 0004 are now applied) |
 | Public deployment | **No.** Missing: shared rate limiting, email verification and password reset, monitoring, a privacy notice and an admin audit trail |
 
 Automated tests passing does not make the application production-ready; the lists above stand.
