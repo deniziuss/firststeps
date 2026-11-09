@@ -194,3 +194,53 @@ test("out-of-range and malformed ids are 'not found', never a server error", asy
     await expect(page.getByRole("heading", { name: "Page not found" }), path).toBeVisible();
   }
 });
+
+test("signing out on one device signs the account out on every device (SessionVersion)", async ({ page, browser }) => {
+  const email = uniqueEmail("sec-devices");
+  await register(page, "Dev", email);
+  const laptop = await browser.newContext({ baseURL: BASE_URL });
+  await laptop.addCookies([{ name: "fs_locale", value: "en", url: `${BASE_URL}/` }]);
+  const laptopPage = await laptop.newPage();
+  await signIn(laptopPage, email, PASSWORD);
+  await laptopPage.goto("/dashboard");
+  await expect(laptopPage).toHaveURL(/\/dashboard$/);
+
+  await signOut(page);
+  await expectSignedOut(laptopPage);
+  // Signing in again works and issues a token with the new version.
+  await signIn(page, email, PASSWORD);
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await laptop.close();
+});
+
+test("an admin role or status change ends the user's sessions; saving unchanged values does not", async ({ page, browser }) => {
+  const admin = adminCredentials();
+  test.skip(!admin.email, "Run npm run db:seed-users first.");
+  const email = uniqueEmail("sec-admin-change");
+  await register(page, "Rita", email);
+
+  const adminContext = await browser.newContext({ baseURL: BASE_URL });
+  await adminContext.addCookies([{ name: "fs_locale", value: "en", url: `${BASE_URL}/` }]);
+  const adminPage = await adminContext.newPage();
+  await signIn(adminPage, admin.email, admin.password);
+  await adminPage.goto(`/admin/users?q=${encodeURIComponent(email)}`);
+  await ready(adminPage);
+  const row = adminPage.getByRole("row").filter({ hasText: email });
+
+  await row.getByRole("button", { name: "Save" }).click();
+  await expect(row.getByText("User updated.")).toBeVisible();
+  await page.goto("/dashboard");
+  await expect(page, "an unchanged save keeps the session").toHaveURL(/\/(dashboard|onboarding)$/);
+
+  await row.getByRole("checkbox", { name: "Active" }).uncheck();
+  await row.getByRole("button", { name: "Save" }).click();
+  await expect(row.getByText("User updated.")).toBeVisible();
+  await expectSignedOut(page);
+  // A deactivated account cannot sign in, with the same message as a wrong password.
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await button(page, "Sign in").click();
+  await expect(formAlert(page)).toContainText("Email or password is incorrect.");
+  await adminContext.close();
+});

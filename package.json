@@ -14,7 +14,8 @@
     "test": "vitest run",
     "db:seed-users": "node --env-file=.env.local scripts/db/seed-dev-users.mjs",
     "db:cleanup-test-data": "node --env-file=.env.local scripts/db/cleanup-test-data.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:db": "node scripts/db/run-db-tests.mjs"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",
