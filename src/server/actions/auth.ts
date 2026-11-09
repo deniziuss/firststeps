@@ -13,6 +13,8 @@ import { withTransaction } from "../db";
 import { keptValues, isUniqueViolation, toAppError, type ActionResult } from "../errors";
 import { log, logError } from "../log";
 import { appLink, sendMail } from "../mail";
+import { renderAccountEmail } from "../mail-templates";
+import type { Locale } from "@/i18n/config";
 import { hashPassword, verifyPassword } from "../password";
 import { hit, isBlocked, reset } from "../rateLimit";
 import * as tokens from "../repositories/tokens";
@@ -30,23 +32,17 @@ async function hitAll(buckets: Parameters<typeof hit>[0][]) {
   return results.every(Boolean);
 }
 
-async function sendVerificationEmail(userId: number, t: Translate) {
+async function sendVerificationEmail(userId: number, t: Translate, locale: Locale, kind: "verify" | "verifyResend" = "verify") {
   const recipient = await users.findMailRecipient(userId);
   if (!recipient || recipient.EmailVerifiedAt) return;
   const token = await tokens.issueToken(userId, "VerifyEmail");
-  await sendMail(
-    {
-      to: recipient.Email,
-      subject: t("email.verify.subject"),
-      text: t("email.verify.text", { name: recipient.FirstName, link: appLink(`/verify-email/${token}`), hours: 24 }),
-    },
-    "verify_email",
-  );
+  const content = renderAccountEmail(kind, t, locale, { name: recipient.FirstName, link: appLink(`/verify-email/${token}`), hours: tokens.TOKEN_TTL_MINUTES.VerifyEmail / 60 });
+  await sendMail({ to: recipient.Email, ...content }, kind === "verify" ? "verify_email" : "verify_email_resend");
 }
 
 export async function register(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   const values = keptValues(formData, ["firstName", "lastName", "email"]);
-  const { t, has } = await getActionI18n();
+  const { t, has, locale } = await getActionI18n();
   const parsed = registerSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, values, error: t("validation.checkFields"), fieldErrors: fieldErrors(parsed.error, t, has) };
   const { firstName, lastName, email, password } = parsed.data;
@@ -63,7 +59,7 @@ export async function register(_: ActionResult | undefined, formData: FormData):
   }
   // The account works right away; the verification email can be resent from the dashboard if it fails.
   try {
-    await sendVerificationEmail(userId, t);
+    await sendVerificationEmail(userId, t, locale);
   } catch {
     // Already logged by sendMail.
   }
@@ -156,7 +152,7 @@ export async function changePassword(_: ActionResult | undefined, formData: Form
  */
 export async function requestPasswordReset(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   const values = keptValues(formData, ["email"]);
-  const { t, has } = await getActionI18n();
+  const { t, has, locale } = await getActionI18n();
   const parsed = resetRequestSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, values, error: t("validation.checkFields"), fieldErrors: fieldErrors(parsed.error, t, has) };
   const generic: ActionResult = { ok: true, message: t("auth.resetRequested") };
@@ -170,14 +166,8 @@ export async function requestPasswordReset(_: ActionResult | undefined, formData
     }
     const recipient = await users.findMailRecipient(account.UserID);
     const token = await tokens.issueToken(account.UserID, "ResetPassword");
-    await sendMail(
-      {
-        to: recipient!.Email,
-        subject: t("email.reset.subject"),
-        text: t("email.reset.text", { name: recipient!.FirstName, link: appLink(`/reset-password/${token}`), minutes: tokens.TOKEN_TTL_MINUTES.ResetPassword }),
-      },
-      "reset_password",
-    );
+    const content = renderAccountEmail("reset", t, locale, { name: recipient!.FirstName, link: appLink(`/reset-password/${token}`), minutes: tokens.TOKEN_TTL_MINUTES.ResetPassword });
+    await sendMail({ to: recipient!.Email, ...content }, "reset_password");
     void log("info", "auth", "password_reset_requested", { userId: account.UserID });
   } catch (error) {
     logError("password_reset_request_failed", error, {}, "auth");
@@ -230,11 +220,11 @@ export async function confirmEmail(_: ActionResult | undefined, formData: FormDa
 
 export async function resendVerification(_: ActionResult | undefined): Promise<ActionResult> {
   const user = await requireUser();
-  const { t } = await getActionI18n();
+  const { t, locale } = await getActionI18n();
   if (user.emailVerified) return { ok: true, message: t("verify.alreadyVerified") };
   try {
     if (!(await hit(verificationResendBucket(user.id)))) return { ok: false, error: t("auth.tooManyAttempts") };
-    await sendVerificationEmail(user.id, t);
+    await sendVerificationEmail(user.id, t, locale, "verifyResend");
     return { ok: true, message: t("verify.resent") };
   } catch (error) {
     logError("verification_resend_failed", error, { userId: user.id }, "auth");

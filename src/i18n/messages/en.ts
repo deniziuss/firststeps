@@ -234,11 +234,20 @@ export const en = {
     verify: {
       subject: "Confirm your FirstSteps email address",
       text: "Hello {name},\n\nplease confirm your email address for FirstSteps:\n{link}\n\nThe link is valid for {hours} hours and works once. If you did not create an account, you can ignore this email.\n\nFirstSteps",
+      button: "Confirm my email address",
     },
     reset: {
       subject: "Reset your FirstSteps password",
       text: "Hello {name},\n\nsomeone asked to reset the password of your FirstSteps account. To choose a new password, open:\n{link}\n\nThe link is valid for {minutes} minutes and works once. If this was not you, ignore this email; your password stays the same.\n\nFirstSteps",
+      button: "Choose a new password",
     },
+    verifyResend: {
+      subject: "Your new FirstSteps confirmation link",
+      text: "Hello {name},\n\nhere is a new link to confirm your email address for FirstSteps. Earlier links no longer work.\n{link}\n\nThe link is valid for {hours} hours and works once. If you did not ask for it, you can ignore this email.\n\nFirstSteps",
+      button: "Confirm my email address",
+    },
+    linkHint: "If the button does not work, copy this link into your browser:",
+    footer: "You receive this email because this address was used for a FirstSteps account. FirstSteps is an independent student project and is not affiliated with any university. We never ask for your password by email.",
   },
   onboarding: {
     welcome: "Welcome, {name}",
