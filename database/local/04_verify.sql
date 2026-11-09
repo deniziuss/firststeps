@@ -2,9 +2,9 @@
 -- Each test runs in its own transaction and is rolled back; rows are synthetic. IDENTITY values may advance.
 -- A THROW inside a trigger dooms the whole transaction (error 3930 on further writes), so negative tests
 -- capture the error, roll back, and only then record the result.
-USE [FirstSteps_Dev];
+-- Run with -d FirstSteps_Dev (local) or -d FirstSteps_Test (disposable copy, CI).
 GO
-IF DB_NAME() <> N'FirstSteps_Dev' THROW 51000, 'Wrong database selected.', 1;
+IF DB_NAME() NOT IN (N'FirstSteps_Dev', N'FirstSteps_Test') THROW 51000, 'Wrong database selected.', 1;
 GO
 SET NOCOUNT ON;
 

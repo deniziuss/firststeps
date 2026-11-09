@@ -76,7 +76,9 @@ try {
   }
 
   for (const file of ["02_seed_content.sql", "03_seed_translations.sql", "05_server_settings.sql", "04_verify.sql"]) {
-    console.log(sqlcmd(bin, ["-i", `database/local/${file}`, "-W"]));
+    // Database scripts run in FirstSteps_Dev; 05 changes instance memory settings and runs in master.
+    const database = file.startsWith("05_") ? [] : ["-d", "FirstSteps_Dev"];
+    console.log(sqlcmd(bin, [...database, "-i", `database/local/${file}`, "-W"]));
   }
 } catch (error) {
   console.error(`FAILED: ${error.message}`);

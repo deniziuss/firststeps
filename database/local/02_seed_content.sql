@@ -1,9 +1,9 @@
 -- Local development only: synthetic pilot content for FirstSteps_Dev. No people, no passwords.
 -- Task texts are guidance drafts, not verified legal requirements. Every source starts as PendingReview.
 -- Idempotent: rows are matched by natural keys and inserted only when missing.
-USE [FirstSteps_Dev];
+-- Run with -d FirstSteps_Dev (local) or -d FirstSteps_Test (disposable copy, CI).
 GO
-IF DB_NAME() <> N'FirstSteps_Dev' THROW 51000, 'Wrong database selected.', 1;
+IF DB_NAME() NOT IN (N'FirstSteps_Dev', N'FirstSteps_Test') THROW 51000, 'Wrong database selected.', 1;
 GO
 SET NOCOUNT ON;
 
