@@ -118,7 +118,7 @@ check("audit: the event is unchanged afterwards", still?.Details === "{}");
 
 // 5. Verification backfill
 const before = (await pool.request().query("SELECT COUNT(*) AS N FROM dbo.Users WHERE EmailVerifiedAt IS NULL")).recordset[0].N;
-ownerSqlcmd(["-i", "database/proposals/0006_security_infrastructure.sql"]);
+ownerSqlcmd(["-i", "database/migrations/0006_security_infrastructure.sql"]);
 const after = (await pool.request().query("SELECT COUNT(*) AS N FROM dbo.Users WHERE EmailVerifiedAt IS NULL")).recordset[0].N;
 check("migration re-run does not verify unverified accounts", after === before, `${before} unverified before, ${after} after`);
 // The seeded admin and mentor existed before 0006 and were backfilled as verified.

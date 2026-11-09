@@ -73,7 +73,7 @@ Typecheck, lint and production build pass · unit 36/36 · E2E 19/19 in two cons
   - the 0005 measurement (narrowed to one index);
   - CI coverage for all of it.
 - **Waiting for approval:**
-  - 0006 and 0005 on `FirstSteps_Dev`;
+  - 0005 on `FirstSteps_Dev` (0006 was approved and applied on 2026-11-10);
   - the scheduled tasks;
   - an email provider;
   - a host and certificates;

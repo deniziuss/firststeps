@@ -67,7 +67,7 @@ Aşağıdakilerin hepsi uygulanmış ve testlerle kapsanmıştır (bkz. [docs/te
   - SQL Server'da kalıcı deneme sınırları ve değiştirilemeyen yönetici denetim kaydı.
   - Sağlık ve hazırlık uç noktaları, yapılandırılmış loglar, doğrulanmış yedekler ve geri yükleme testleri.
   - Ayrıntılar: [docs/email.md](docs/email.md), [docs/operations.md](docs/operations.md).
-  - Tablolar proposal 0006'da; ayrı bir test kopyasında denendi, geliştirme veritabanına uygulanması onay bekliyor.
+  - Tablolar migration 0006'dan geliyor; onaylandı ve 2026-11-10'da yerel geliştirme veritabanına uygulandı.
 - **İşletim ve gizlilik:**
   - TLS ve yeniden denemeli SMTP gönderimi (bir sağlayıcıya bağlı değil).
   - Metrikler ve yerel sağlık/alarm kontrolü.

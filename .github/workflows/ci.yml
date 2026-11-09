@@ -120,12 +120,12 @@ jobs:
         run: |
           SQL="sqlcmd -S tcp:127.0.0.1,1433 -U sa -P $SA_PASSWORD -C -b"
           $SQL -i database/ci/00_create_test_database.sql -v APP_PASSWORD="$APP_PASSWORD"
-          for f in database/migrations/*.sql; do echo "migration $f"; $SQL -d FirstSteps_Test -i "$f"; done
-          # Two synthetic accounts that exist BEFORE 0006, like the developer database: 0006 must mark
-          # them verified once, and never mark later accounts (checked below).
-          $SQL -d FirstSteps_Test -Q "INSERT dbo.Users (FirstName, LastName, Email, PasswordHash, UserRole) VALUES (N'Ci', N'Admin', N'ci-admin@example.invalid', N'x', N'Admin'), (N'Ci', N'Mentor', N'ci-mentor@example.invalid', N'x', N'Mentor');"
-          # Pending until approved for FirstSteps_Dev; the code on this branch needs it.
-          for f in database/proposals/0006_security_infrastructure.sql; do echo "proposal $f"; $SQL -d FirstSteps_Test -i "$f"; done
+          for f in database/migrations/*.sql; do
+            # Two synthetic accounts that exist BEFORE 0006, like the developer database: 0006 must mark
+            # them verified once, and never mark later accounts (checked below).
+            case "$f" in *0006_*) $SQL -d FirstSteps_Test -Q "INSERT dbo.Users (FirstName, LastName, Email, PasswordHash, UserRole) VALUES (N'Ci', N'Admin', N'ci-admin@example.invalid', N'x', N'Admin'), (N'Ci', N'Mentor', N'ci-mentor@example.invalid', N'x', N'Mentor');";; esac
+            echo "migration $f"; $SQL -d FirstSteps_Test -i "$f"
+          done
           $SQL -d FirstSteps_Test -i database/local/02_seed_content.sql
           $SQL -d FirstSteps_Test -i database/local/03_seed_translations.sql
 
@@ -136,12 +136,12 @@ jobs:
           if grep -q "FAIL" verify.txt; then echo "04_verify reported a failure"; exit 1; fi
           $SQL -i database/tests/0006_verify.sql
 
-      # Every migration and 0006 again (a repeated deployment must change nothing), then the 0006
+      # Every migration again (a repeated deployment must change nothing), then the 0006
       # scenario tests: fresh install, interrupted run, re-runs, unverified accounts after a re-run.
       - name: Repeat migrations and 0006 idempotency scenarios
         run: |
           SQL="sqlcmd -S tcp:127.0.0.1,1433 -U sa -P $SA_PASSWORD -C -b -d FirstSteps_Test -W"
-          for f in database/migrations/*.sql database/proposals/0006_security_infrastructure.sql; do echo "re-run $f"; $SQL -i "$f"; done
+          for f in database/migrations/*.sql; do echo "re-run $f"; $SQL -i "$f"; done
           $SQL -i database/tests/0006_idempotency.sql | tee idempotency.txt
           $SQL -i database/tests/0006_rerun_unverified.sql | tee rerun.txt
           if grep -q "FAIL" idempotency.txt rerun.txt; then echo "0006 scenario failed"; exit 1; fi

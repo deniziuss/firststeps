@@ -12,7 +12,7 @@ GO
 INSERT dbo.Users (FirstName, LastName, Email, PasswordHash) VALUES (N'Rerun', N'Unverified', N'rerun+' + CONVERT(NVARCHAR(36), NEWID()) + N'@example.invalid', N'x');
 EXEC sys.sp_executesql N'UPDATE dbo.Users SET EmailVerifiedAt = NULL;';
 GO
-:r database/proposals/0006_security_infrastructure.sql
+:r database/migrations/0006_security_infrastructure.sql
 GO
 DECLARE @verified INT;
 EXEC sys.sp_executesql N'SELECT @n = COUNT(*) FROM dbo.Users WHERE EmailVerifiedAt IS NOT NULL;', N'@n INT OUTPUT', @n = @verified OUTPUT;

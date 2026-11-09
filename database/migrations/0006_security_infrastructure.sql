@@ -1,5 +1,5 @@
 /*
-  PROPOSAL 0006 (moves to database/migrations after approval): security infrastructure (application tables; the eight course tables are unchanged
+  MIGRATION 0006: security infrastructure (application tables; the eight course tables are unchanged
   except for one new nullable column on dbo.Users).
 
   1. dbo.Rate_Limit_Buckets   persistent, atomic rate-limit counters (survive restarts, shared by
@@ -12,7 +12,8 @@
                               refused; DELETE only through dbo.usp_AdminAudit_Purge (retention).
 
   Idempotent. Rollback: database/rollbacks/0006_rollback.sql.
-  Status: tested on the disposable FirstSteps_Test database; applied to FirstSteps_Dev only after approval.
+  Status: approved and applied to the local FirstSteps_Dev on 2026-11-10 (after a verified backup); 4 existing
+  accounts backfilled as verified. Tested before on FirstSteps_Test and FirstSteps_RestoreTest and in CI.
 */
 SET NOCOUNT ON;
 GO

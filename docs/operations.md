@@ -38,7 +38,7 @@ Backups contain personal data (names, emails, password hashes). They must never 
 2. Find the newest successful backup in `backup-status.json` or in SQL Server's history (`msdb.dbo.backupset`).
 3. Run `restore-test.ps1 -Backup <file>`; it must end with `RESTORE TEST PASSED`. If `FirstSteps_Dev` is gone, the schema comparison fails by design; check the counts manually.
 4. If the data is right, an administrator restores the same file over `FirstSteps_Dev` with SSMS or `RESTORE DATABASE … WITH REPLACE`. This is a deliberate manual step; no script does it.
-5. Run `database/local/04_verify.sql` (and `database/tests/0006_verify.sql` once 0006 is applied), start the app, then check `/api/ready` and `scripts/ops/health-check.ps1`.
+5. Run `database/local/04_verify.sql` and `database/tests/0006_verify.sql`, start the app, then check `/api/ready` and `scripts/ops/health-check.ps1`.
 
 Recovery point: up to 24 hours of changes (daily backup). Recovery time: minutes at the current size (restore of 8 MB took under 5 s).
 

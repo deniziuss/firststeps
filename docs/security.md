@@ -99,7 +99,7 @@ Status labels: **Fixed and verified**, **Verified, no issue found**, **Open issu
 All new tables are in **proposal 0006** (`database/proposals/0006_security_infrastructure.sql`, rollback `database/rollbacks/0006_rollback.sql`).
 - **Tested on:** `FirstSteps_Test`, a restored copy of a verified `FirstSteps_Dev` backup, and in the CI SQL Server container.
 - **Not applied** to `FirstSteps_Dev`: **Prepared, awaiting approval**.
-- The application code on this branch needs 0006, so until it is approved the branch runs against `FirstSteps_Test` (`DB_NAME=FirstSteps_Test`).
+- The application code on this branch needs 0006, so until it is approved the branch runs against `FirstSteps_Test` (`DB_NAME=FirstSteps_Test`). (Approved and applied to `FirstSteps_Dev` on 2026-11-10, round 5.)
 
 | ID | Area | Before | Now | Evidence | Status |
 |---|---|---|---|---|---|
@@ -151,13 +151,13 @@ Details hold ids, enum values and content titles only; keys that look like email
 | OPS-05 | Metrics | `/api/metrics` behind `METRICS_TOKEN` (404 when unset, 401 for a wrong token, constant-time comparison). The build had prerendered it as a static 404; fixed with `connection()` | Unit, E2E and CI | Implemented and verified |
 | OPS-06 | Data export | `/api/account/export`: own data only, no hashes or session data, 10 per hour, 401 without a session | E2E, CI | Implemented and verified |
 | OPS-07 | Anonymisation | Students only, dry run first, double confirmation, active admin required, audited, idempotent, extra guard for Dev | Run on `FirstSteps_Test` | Implemented and verified |
+| OPS-09 | Migration 0006 on `FirstSteps_Dev` | Approved by the owner and applied on 2026-11-10 after a verified backup (`FirstSteps_Dev_20261110_013902.bak`, restore test passed). The 4 existing accounts were backfilled with their `CreatedAt`; a re-run changed nothing | `0006_verify` 11/11, `04_verify` 12/12, parity 19/19, `/api/ready` 200 on Dev; schema fingerprint identical to `FirstSteps_Test` | Applied and verified. Rollback (`0006_rollback.sql`) only manually: it deletes tokens and audit history |
 | OPS-08 | CI | The 0006 security script, maintenance and the 0005 measurement run with the least-privilege app login or inside rolled-back transactions; owner passwords reach `sqlcmd` only through `SQLCMDPASSWORD` | `.github/workflows/ci.yml` | Implemented |
 
 ## Proposals still pending
 
 | File | Change | Data impact | Rollback |
 |---|---|---|---|
-| `database/proposals/0006_security_infrastructure.sql` | Rate limits, tokens, audit, `EmailVerifiedAt` (corrected backfill) | New tables; existing accounts marked verified once | `database/rollbacks/0006_rollback.sql` (deletes tokens and audit history: manual only) |
 | `database/proposals/0005_foreign_key_indexes.sql` | One index, `Help_Requests (JourneyTaskID)` (measured; see `docs/database.md`) | None | `DROP INDEX IX_HelpRequests_JourneyTask ON dbo.Help_Requests` |
 ## Pending schema changes (round 2 plan, kept for reference)
 
@@ -192,7 +192,7 @@ This assessment does not claim that the application is secure or production-read
 - **Workflows and access control:** student, mentor and admin workflows end to end in English and Turkish. Server-side role and ownership checks with negative tests; parameterized SQL; constraints and triggers.
 - **Authentication and sessions:** Argon2id, generic errors, persistent SQL rate limits with race tests. Sessions revoked on sign-out, password change and admin changes (`SessionVersion`).
 - **Account security:** email verification and password reset with single-use hashed tokens; append-only admin audit log that the app login cannot alter. All of this on `FirstSteps_Test` and in CI.
-- **Migration 0006:** idempotent and safe to re-run (corrected).
+- **Migration 0006:** idempotent and safe to re-run (corrected); applied to `FirstSteps_Dev` on 2026-11-10.
 - **Headers and pages:** CSP and security headers; axe-clean pages; responsive layouts; reduced motion.
 - **Operations:**
   - verified backups with a free-space check;
@@ -209,7 +209,6 @@ This assessment does not claim that the application is secure or production-read
 - **Backups:** a dedicated backup folder with restricted permissions.
 
 **Prepared, awaiting approval**
-- Migration 0006 on `FirstSteps_Dev`, after a backup.
 - Proposal 0005 (one index).
 - Windows scheduled tasks: backup, restore test, health check.
 - Reverse-proxy configs and a host.
@@ -233,7 +232,7 @@ This assessment does not claim that the application is secure or production-read
 ### Verdict
 | Use | Ready? |
 |---|---|
-| Local demonstration | **Yes** (with 0006 applied to `FirstSteps_Dev` after approval; the branch code needs it) |
+| Local demonstration | **Yes** (0006 applied to `FirstSteps_Dev` on 2026-11-10) |
 | Controlled pilot (one instance, known users) | **After** approval and setup of: 0006 on the pilot database, an HTTPS host with the prepared proxy, an email provider, scheduled backups and health checks, and the confirmed privacy notice |
 | Public deployment | **No.** In addition: reviewed content, a hosted database decision, external alerting and a load test from separate machines |
 

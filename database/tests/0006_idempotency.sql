@@ -37,7 +37,7 @@ ROLLBACK TRANSACTION interrupted;
 INSERT #r VALUES (N'(6) interrupted run leaves no EmailVerifiedAt column', IIF(COL_LENGTH(N'dbo.Users', N'EmailVerifiedAt') IS NULL, N'PASS', N'FAIL'));
 GO
 -- First real run.
-:r database/proposals/0006_security_infrastructure.sql
+:r database/migrations/0006_security_infrastructure.sql
 GO
 INSERT #r SELECT N'(1) accounts existing at the first run are verified with their CreatedAt',
     IIF(COUNT(*) = 2, N'PASS', N'FAIL')
@@ -51,7 +51,7 @@ INSERT dbo.Users (FirstName, LastName, Email, PasswordHash, EmailVerifiedAt) VAL
 INSERT #u VALUES (N'newVerified', SCOPE_IDENTITY(), NULL);
 GO
 -- (4) Second run.
-:r database/proposals/0006_security_infrastructure.sql
+:r database/migrations/0006_security_infrastructure.sql
 GO
 INSERT #r SELECT N'(3)(4) a new registration stays unverified after a second run',
     IIF((SELECT EmailVerifiedAt FROM dbo.Users WHERE UserID = (SELECT UserID FROM #u WHERE Name = N'newStudent')) IS NULL, N'PASS', N'FAIL');
@@ -59,7 +59,7 @@ INSERT #r SELECT N'(4) a verification timestamp is not changed by a second run',
     IIF((SELECT EmailVerifiedAt FROM dbo.Users WHERE UserID = (SELECT UserID FROM #u WHERE Name = N'newVerified')) = '2026-03-03T03:03:03', N'PASS', N'FAIL');
 GO
 -- (5) Third run with verified and unverified accounts.
-:r database/proposals/0006_security_infrastructure.sql
+:r database/migrations/0006_security_infrastructure.sql
 GO
 INSERT #r SELECT N'(5) third run: unverified stays unverified, verified keeps its time, old accounts unchanged',
     IIF((SELECT EmailVerifiedAt FROM dbo.Users WHERE UserID = (SELECT UserID FROM #u WHERE Name = N'newStudent')) IS NULL
