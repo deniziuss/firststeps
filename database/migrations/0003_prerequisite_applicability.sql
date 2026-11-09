@@ -1,7 +1,7 @@
-/* PROPOSAL 0003: prerequisites that do not apply to a journey no longer lock dependent tasks.
-   Status: NOT APPLIED. Waiting for a product decision (docs/issues/001-prerequisite-satisfaction.md).
-   Not part of database/migrations, so `npm run db:local:setup` does not run it.
-   Tested only inside a rolled-back transaction: database/proposals/0003_test_rolled_back.sql.
+/* MIGRATION 0003: prerequisites that do not apply to a journey no longer lock dependent tasks.
+   Approved and applied to the local FirstSteps_Dev on 2026-11-09 (Issue 001).
+   The application rule (src/domain/prerequisites.ts) is identical; tests/unit/prerequisite-parity
+   checks both against the same cases. Rollback: database/rollbacks/0003_rollback.sql.
 
    A prerequisite counts as satisfied when
      - its journey task is Completed, or
@@ -40,3 +40,4 @@ BEGIN
     )
         THROW 51001, 'Prerequisite tasks must be completed first.', 1;
 END;
+GO

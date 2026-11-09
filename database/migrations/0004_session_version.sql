@@ -1,5 +1,6 @@
 /*
-  PROPOSAL 0004: persistent session revocation (NOT APPLIED; requires approval)
+  MIGRATION 0004: persistent session revocation
+  Approved and applied to the local FirstSteps_Dev on 2026-11-09.
 
   Adds dbo.Users.SessionVersion. Every session token carries the version it was issued with
   (claim "sv"); the application rejects a token whose version differs from the current row.
