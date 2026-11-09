@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { connection } from "next/server";
 import { poolStats } from "@/server/db";
 import { env } from "@/server/env";
 import { renderMetrics } from "@/server/metrics";
@@ -10,6 +11,9 @@ import { renderMetrics } from "@/server/metrics";
 const digest = (value: string) => createHash("sha256").update(value).digest();
 
 export async function GET(request: Request) {
+  // Always per request: without this the build would prerender the answer (the 404 when no token is
+  // configured at build time) and serve it forever.
+  await connection();
   const token = env().METRICS_TOKEN;
   if (!token) return new Response(null, { status: 404 });
   const given = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
