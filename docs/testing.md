@@ -48,6 +48,15 @@ Safety rules of the cleanup:
 | Cleanup self-test | Pass: 1 matching account removed, 4 decoys and all older accounts kept |
 | Screen sweep (all pages, en/tr, light/dark, 360 px and 1280 px) | No other-language text, raw message keys, horizontal overflow or empty titles; intentional English on admin task pages (English source title, stored category codes) |
 
+## Editorial redesign checks (2026-11-09)
+| Check | Result |
+|---|---|
+| Landing E2E (`landing.spec.ts`) | Dependency demo follows the prerequisite and reopening rules and saves nothing; section links scroll and mark the active section; mobile menu; no overflow at 360 px; reduced motion leaves nothing hidden |
+| axe-core on the landing page | Audited after all animations settle and again with reduced motion, English and Turkish, light and dark |
+| Responsive sweep (`scripts/screenshots.mjs`) | 360, 390, 768, 1024, 1280, 1440, 1920 px × en/tr × light/dark: no horizontal overflow |
+| Design captures (`CAPTURE=1 npx playwright test visual`) | Student, mentor, admin and auth screens; skipped in normal runs |
+| Performance (`scripts/perf.mjs`) | See [design-system.md](design-system.md#5-performance) |
+
 ## Document title
 On dynamic pages Next.js streams metadata, so `<title>` is filled shortly after the first HTML. Measured on the production build: 12–80 ms when warm. Longer gaps only appeared on a cold database (see [database.md](database.md#local-sql-server-express-settings)). The accessibility test waits for the title before running axe.
 

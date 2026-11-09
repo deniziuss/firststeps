@@ -55,6 +55,11 @@ Aşağıdakilerin hepsi uygulanmış ve testlerle kapsanmıştır (bkz. [docs/te
   - Arayüzün tamamı, doğrulama mesajları ve tarihler iki dilde kullanılabilir.
   - Dil seçici, girişten önce ve sonra üst menüde bulunur; seçim bir çerezde saklanır.
   - Veritabanındaki görev ve kaynak metinleri çevrilmiştir. Çeviri yoksa İngilizce metin bir uyarıyla gösterilir.
+- **Editoryal tasarım ve hareket:**
+  - Editoryal bir açılış sayfası: yüzen menü, örnek verili ürün önizlemesi, kaydırmayla anlatım, etkileşimli bağımlılık demosu ve mentor akışı.
+  - Aynı görsel dil öğrenci, mentor ve yönetici ekranlarında da kullanılır.
+  - Hareketler GSAP ile yapılır; Lenis yumuşak kaydırması yalnızca açılış sayfasındadır; iki React Bits bileşeni uyarlanmıştır.
+  - "Hareketi azalt" ayarına uyulur ve hiçbir içerik animasyona bağlı değildir. Ayrıntılar: [docs/design-system.md](docs/design-system.md).
 - **Arayüz:**
   - Doğal bir renk paleti: koyu orman yeşili, orman yeşili, sıcak fildişi, okr altını, sıcak boz.
   - Açık ve koyu tema.
@@ -68,7 +73,8 @@ Aşağıdakilerin hepsi uygulanmış ve testlerle kapsanmıştır (bkz. [docs/te
 | Alan | Teknoloji |
 |---|---|
 | Web uygulaması | Next.js 16 (App Router, Server Actions), React 19, TypeScript |
-| Arayüz | Tailwind CSS 4, shadcn/ui (Radix), lucide-react, Recharts, Fraunces ve Geist yazı tipleri |
+| Arayüz | Tailwind CSS 4, shadcn/ui (Radix), lucide-react, Recharts, Inter Tight, Inter ve Geist Mono yazı tipleri |
+| Hareket | GSAP 3 (ScrollTrigger, SplitText) ve `@gsap/react`, Lenis, uyarlanmış React Bits bileşenleri ([bildirimler](THIRD_PARTY_NOTICES.md)) |
 | Diller | İngilizce ve Türkçe: projeye ait tipli sözlükler, `Intl` biçimlendirme, Next.js proxy ile dil yönlendirmesi |
 | Doğrulama | Zod |
 | Veritabanı | Microsoft SQL Server (SQL Server 2022 Express üzerinde geliştirildi), `mssql` sürücüsü |
@@ -167,11 +173,11 @@ scripts/db/            kurulum, bağlantı kontrolü, şema anlık görüntüsü
 src/app/[locale]/      sayfalar: (auth) giriş/kayıt, (app) öğrenci, mentor ve yönetici ekranları
 src/i18n/              dil ayarları, İngilizce ve Türkçe sözlükler, çevirici ve biçimlendiriciler
 src/proxy.ts           temiz URL'leri çerezdeki dile yönlendirir
-src/components/        arayüz bileşenleri
+src/components/        arayüz bileşenleri (landing/, motion/, reactbits/, ui/)
 src/domain/            iş kuralları (birim testli)
 src/server/            ortam, veritabanı erişimi, oturum, yetkilendirme, repository'ler, server action'lar
 tests/unit, tests/e2e  Vitest ve Playwright testleri
-docs/                  mimari, veritabanı, testler, ilerleme
+docs/                  mimari, veritabanı, tasarım sistemi, testler, ilerleme, ekran görüntüleri
 ```
 
 ## Mevcut durum ve yol haritası

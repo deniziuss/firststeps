@@ -14,6 +14,18 @@ async function audit(page: Page, label: string) {
   expect(issues, issues.join("\n")).toEqual([]);
 }
 
+// The landing page animates content in. Scroll through it once and wait until every entrance and
+// scroll-triggered animation has finished, so axe measures the final colours, not a mid-fade frame.
+async function settleMotion(page: Page) {
+  await page.waitForLoadState("networkidle");
+  const height = await page.evaluate(() => document.body.scrollHeight);
+  for (let y = 0; y < height; y += 600) {
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(150);
+  }
+  await page.waitForTimeout(3500);
+}
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`${colorScheme} theme`, () => {
     test.use({ colorScheme });
@@ -22,8 +34,17 @@ for (const colorScheme of ["light", "dark"] as const) {
       for (const prefix of ["/en", "/tr"]) {
         for (const path of ["", "/sign-in", "/register"]) {
           await page.goto(`${prefix}${path}`);
+          if (path === "") await settleMotion(page);
           await audit(page, `${prefix}${path || "/"}`);
         }
+      }
+    });
+
+    test("landing page with reduced motion (every section visible at once)", async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      for (const prefix of ["/en", "/tr"]) {
+        await page.goto(prefix);
+        await audit(page, `${prefix}/ (reduced motion)`);
       }
     });
 
