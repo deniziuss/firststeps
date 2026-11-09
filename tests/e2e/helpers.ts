@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import type { Browser, Page } from "@playwright/test";
 import { BASE_URL, expect, setLocaleCookie } from "./fixtures";
 
@@ -12,7 +14,40 @@ export async function ready(page: Page) {
   await page.waitForLoadState("networkidle");
 }
 
-export async function register(page: Page, firstName: string, email: string) {
+const OUTBOX = path.resolve(".mail-outbox/e2e");
+
+/** Newest development-outbox email to `to` whose text contains `marker` (e.g. "/verify-email/"). */
+export async function latestMail(to: string, marker: string): Promise<{ subject: string; text: string; link: string }> {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    let files: string[] = [];
+    try {
+      files = readdirSync(OUTBOX).filter((name) => name.endsWith(".json")).sort().reverse();
+    } catch {
+      // not created yet
+    }
+    for (const name of files) {
+      const mail = JSON.parse(readFileSync(path.join(OUTBOX, name), "utf8")) as { to: string; subject: string; text: string };
+      if (mail.to === to && mail.text.includes(marker)) {
+        const link = new RegExp(String.raw`https?://\S*${marker}[A-Za-z0-9_-]+`).exec(mail.text)?.[0];
+        if (link) return { subject: mail.subject, text: mail.text, link };
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`No email to ${to} containing ${marker}`);
+}
+
+/** Opens the verification link from the outbox and confirms the address. */
+export async function verifyEmail(page: Page, email: string) {
+  const { link } = await latestMail(email, "/verify-email/");
+  await page.goto(new URL(link).pathname);
+  await ready(page);
+  await page.getByRole("button", { name: /^(Confirm my email address|E-posta adresimi doğrula)$/ }).click();
+  await expect(page.getByText(/^(Your email address is confirmed\.|E-posta adresin doğrulandı\.)$/)).toBeVisible();
+}
+
+// Registers a synthetic student; by default also confirms the email address (help requests need it).
+export async function register(page: Page, firstName: string, email: string, options: { verify?: boolean } = {}) {
   await page.goto("/register");
   await ready(page);
   await page.getByLabel("First name").fill(firstName);
@@ -22,14 +57,19 @@ export async function register(page: Page, firstName: string, email: string) {
   await page.getByLabel("Confirm password").fill(PASSWORD);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
+  if (options.verify !== false) {
+    await verifyEmail(page, email);
+    await page.goto("/onboarding");
+    await ready(page);
+  }
 }
 
 export async function signIn(page: Page, email: string, password: string) {
   await page.goto("/sign-in");
   await ready(page);
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByLabel("Email", { exact: true }).filter({ visible: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).filter({ visible: true }).fill(password);
+  await page.getByRole("button", { name: "Sign in" }).filter({ visible: true }).click();
   await expect(page).not.toHaveURL(/\/sign-in$/);
 }
 

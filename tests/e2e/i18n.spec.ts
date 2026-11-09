@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { applicableTaskCount, button, formAlert, formStatus, statusPanel, uniqueEmail } from "./helpers";
+import { applicableTaskCount, button, formAlert, formStatus, latestMail, statusPanel, uniqueEmail, verifyEmail } from "./helpers";
 
 const PASSWORD = "Turkce-akis-2026";
 
@@ -37,12 +37,18 @@ test("full student flow in Turkish: register, plan, complete a task, ask for hel
 
   await page.getByLabel("Ad", { exact: true }).fill("Elif");
   await page.getByLabel("Soyad").fill("Deneme");
-  await page.getByLabel("E-posta").fill(uniqueEmail("tr"));
+  const email = uniqueEmail("tr");
+  await page.getByLabel("E-posta").fill(email);
   await page.getByLabel("Şifre", { exact: true }).fill(PASSWORD);
   await page.getByLabel("Şifre (tekrar)").fill(PASSWORD);
   await page.getByRole("button", { name: "Hesap oluştur" }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
   await expect(page.getByRole("heading", { name: "Hoş geldin, Elif" })).toBeVisible();
+
+  // The verification email is written in the language of the registration, and confirming works in Turkish.
+  expect((await latestMail(email, "/verify-email/")).subject).toBe("FirstSteps e-posta adresini doğrula");
+  await verifyEmail(page, email);
+  await page.goto("/onboarding");
 
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Ne zaman varıyorsun?").fill("2027-02-01");

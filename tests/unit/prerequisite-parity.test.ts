@@ -8,7 +8,7 @@ import { checkTransition } from "@/domain/prerequisites";
 import type { AccommodationCondition, AccommodationStatus, ApplicableProgram, ProgramType, TaskStatus } from "@/domain/statuses";
 
 // One table of cases for both rule implementations: the TypeScript engine (always) and the SQL
-// trigger dbo.trg_JourneyTasks_ValidatePrerequisites (with RUN_DB_TESTS=1, local FirstSteps_Dev only,
+// trigger dbo.trg_JourneyTasks_ValidatePrerequisites (with RUN_DB_TESTS=1, a local development/test database or the CI container only,
 // every case inside its own rolled-back transaction). Task D requires prerequisite P; the student
 // tries to complete D.
 type Case = {
@@ -29,6 +29,15 @@ const CASES: Case[] = [
   { name: "5a present, Pending", journey: ERASMUS_CONFIRMED, prerequisite: { row: "Pending" }, expected: "blocked" },
   { name: "5b present, InProgress", journey: ERASMUS_CONFIRMED, prerequisite: { row: "InProgress" }, expected: "blocked" },
   { name: "5c present, Blocked", journey: ERASMUS_CONFIRMED, prerequisite: { row: "Blocked" }, expected: "blocked" },
+];
+
+// Connection for the SQL side: the local instance with Windows authentication by default; CI passes a
+// disposable container with SQL authentication (SQLCMD_USER / SQLCMD_PASSWORD) and DB_NAME=FirstSteps_Test.
+const DATABASE = process.env.DB_NAME === "FirstSteps_Test" ? "FirstSteps_Test" : "FirstSteps_Dev";
+const SQLCMD = [
+  "-S", process.env.SQLCMD_SERVER ?? "tcp:127.0.0.1,1433",
+  ...(process.env.SQLCMD_USER ? ["-U", process.env.SQLCMD_USER, "-P", process.env.SQLCMD_PASSWORD ?? ""] : ["-E"]),
+  "-C", "-b", "-d", DATABASE,
 ];
 
 const P = 1;
@@ -52,7 +61,7 @@ function sqlResult(c: Case, index: number): string {
   const p = c.prerequisite;
   const batch = `
 SET NOCOUNT ON; SET XACT_ABORT OFF;
-IF DB_NAME() <> N'FirstSteps_Dev' THROW 51000, 'Run only against FirstSteps_Dev', 1;
+IF DB_NAME() NOT IN (N'FirstSteps_Dev', N'FirstSteps_Test') THROW 51000, 'Run only against a FirstSteps development or test database', 1;
 BEGIN TRANSACTION;
 DECLARE @uni INT, @user INT, @j INT, @P INT, @D INT;
 INSERT dbo.Universities (UniversityName, City, Country, CountryCode) VALUES (N'Parity U ${index}', N'Paritycity', N'Testland', 'XX'); SET @uni = SCOPE_IDENTITY();
@@ -77,7 +86,7 @@ IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
   try {
     const file = path.join(dir, "case.sql");
     writeFileSync(file, batch);
-    const output = execFileSync("sqlcmd", ["-S", "tcp:127.0.0.1,1433", "-E", "-C", "-b", "-d", "FirstSteps_Dev", "-i", file], { encoding: "utf8" });
+    const output = execFileSync("sqlcmd", [...SQLCMD, "-i", file], { encoding: "utf8" });
     return /RESULT (\w+(?: \d+)?)/.exec(output)?.[1] ?? `no result: ${output}`;
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -88,10 +97,10 @@ describe("prerequisite rule: TypeScript engine", () => {
   for (const c of CASES) it(c.name, () => expect(typescriptResult(c)).toBe(c.expected));
 });
 
-describe.runIf(process.env.RUN_DB_TESTS === "1")("prerequisite rule: SQL trigger (FirstSteps_Dev, rolled back)", () => {
+describe.runIf(process.env.RUN_DB_TESTS === "1")(`prerequisite rule: SQL trigger (${DATABASE}, rolled back)`, () => {
   CASES.forEach((c, index) => it(c.name, () => expect(sqlResult(c, index)).toBe(c.expected), 30_000));
   it("left no test rows behind", () => {
-    const output = execFileSync("sqlcmd", ["-S", "tcp:127.0.0.1,1433", "-E", "-C", "-b", "-d", "FirstSteps_Dev", "-h", "-1", "-Q", "SET NOCOUNT ON; SELECT COUNT(*) FROM dbo.Users WHERE Email LIKE N'parity-%@example.invalid'"], { encoding: "utf8" });
+    const output = execFileSync("sqlcmd", [...SQLCMD, "-h", "-1", "-Q", "SET NOCOUNT ON; SELECT COUNT(*) FROM dbo.Users WHERE Email LIKE N'parity-%@example.invalid'"], { encoding: "utf8" });
     expect(output.trim()).toBe("0");
   });
 });

@@ -1,7 +1,13 @@
 import { defineConfig } from "@playwright/test";
 
-// Tests run against the local dev server and FirstSteps_Dev only. Credentials come from .env.local.
+// Tests run against a local production build. Credentials come from .env.local; variables already set
+// in the shell win (process.loadEnvFile does not override), so the suite can target the disposable
+// database: DB_NAME=FirstSteps_Test npx playwright test. Emails go to the development outbox, which the
+// tests read to follow verification and reset links.
 process.loadEnvFile(".env.local");
+process.env.APP_URL = "http://localhost:3100";
+process.env.MAIL_TRANSPORT = "outbox";
+process.env.MAIL_OUTBOX_DIR = ".mail-outbox/e2e";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -22,7 +28,9 @@ export default defineConfig({
   webServer: {
     command: "npm run build && npx next start -p 3100",
     url: "http://localhost:3100",
-    reuseExistingServer: false,
+    // E2E_REUSE_SERVER=1 runs the suite against a server you started yourself (for example with logs
+    // written to a file for the log scan); by default the suite builds and starts its own.
+    reuseExistingServer: process.env.E2E_REUSE_SERVER === "1",
     timeout: 300_000,
   },
 });

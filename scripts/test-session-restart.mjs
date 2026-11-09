@@ -1,9 +1,11 @@
-// Session revocation across a server restart (migration 0004). Uses the existing production build
-// (`npm run build` first) and the local FirstSteps_Dev only.
+// Session revocation (migration 0004) and rate limits (0006) across a server restart. Uses the existing production build
+// (`npm run build` first) and the local test database only.
 //   1. start the server, register a synthetic student (qa+restart-…@example.invalid) on two "devices"
 //   2. copy device A's cookie, sign device A out (SessionVersion + 1)
 //   3. stop and start the server again (no in-memory state survives)
 //   4. replaying the copied cookie must be rejected; a session issued after the sign-out must still work
+//   5. five failed sign-ins before the restart still block the sixth attempt after it (persistent limits)
+// Run against the test database: DB_NAME=FirstSteps_Test (needs migration 0006).
 // The synthetic student is removed afterwards with the normal test-data cleanup.
 // Usage: node --env-file=.env.local scripts/test-session-restart.mjs
 import { execFileSync, spawn } from "node:child_process";
@@ -66,6 +68,20 @@ try {
   await pageB.waitForURL(/\/(dashboard|onboarding)$/);
   const fresh = (await b.cookies()).find((c) => c.name === "fs_session");
 
+  // Five failed sign-ins before the restart.
+  const c = await browser.newContext({ baseURL: BASE });
+  const pageC = await c.newPage();
+  await pageC.goto("/sign-in", { waitUntil: "networkidle" });
+  for (let i = 0; i < 5; i++) {
+    await pageC.getByLabel("Email").fill(email);
+    await pageC.getByLabel("Password").fill("wrong-password-123");
+    await pageC.getByRole("button", { name: "Sign in" }).click();
+    await pageC.waitForLoadState("networkidle");
+    await pageC.getByRole("button", { name: "Sign in" }).waitFor();
+    await pageC.waitForTimeout(300);
+  }
+  await c.close();
+
   await stop(server);
   server = startServer();
   await waitUntilUp();
@@ -82,6 +98,17 @@ try {
     check(label, signedIn === expectSignedIn);
     await context.close();
   }
+
+  const d = await browser.newContext({ baseURL: BASE });
+  const pageD = await d.newPage();
+  await pageD.goto("/sign-in", { waitUntil: "networkidle" });
+  await pageD.getByLabel("Email").fill(email);
+  await pageD.getByLabel("Password").fill(password);
+  await pageD.getByRole("button", { name: "Sign in" }).click();
+  await pageD.waitForTimeout(1500);
+  const text = await pageD.locator("main").innerText();
+  check("failed sign-ins before the restart still count after it", /Too many attempts/.test(text));
+  await d.close();
 } finally {
   await browser.close();
   await stop(server);
