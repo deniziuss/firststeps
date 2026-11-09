@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { displayStatus } from "@/components/status";
 import { summarizeProgress } from "@/domain/progress";
+import type { TaskStatus } from "@/domain/statuses";
 import { getI18n } from "@/i18n/server";
 import { requireRole } from "@/server/dal";
 import { listStudentRequests } from "@/server/repositories/help";
@@ -28,7 +30,12 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/journe
   const completed = tasks.filter((task) => task.TaskStatus === "Completed");
   const journeyRequests = requests.filter((r) => tasks.some((task) => task.JourneyTaskID === r.JourneyTaskID));
   // The course cursor procedure returns English titles; show them in the user's language.
-  const localizedTitle = new Map(tasks.map((task) => [task.BaseTitle, task.TaskTitle]));
+  const byBaseTitle = new Map(tasks.map((task) => [task.BaseTitle, task]));
+  // Same status rule as the journey page: an open task whose prerequisites are not done is "Locked".
+  const reportStatus = (title: string, status: TaskStatus) => {
+    const task = byBaseTitle.get(title);
+    return displayStatus(status, (task?.unmet.length ?? 0) > 0);
+  };
 
   return (
     <article className="mx-auto grid max-w-3xl gap-8 print:max-w-none">
@@ -91,8 +98,8 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/journe
               {openTasks.map((task) => (
                 <TableRow key={task.TaskNumber}>
                   <TableCell>{task.TaskNumber}</TableCell>
-                  <TableCell className="whitespace-normal">{localizedTitle.get(task.TaskTitle) ?? task.TaskTitle}</TableCell>
-                  <TableCell>{t(`taskStatus.${task.TaskStatus}.label`)}</TableCell>
+                  <TableCell className="whitespace-normal">{byBaseTitle.get(task.TaskTitle)?.TaskTitle ?? task.TaskTitle}</TableCell>
+                  <TableCell>{t(`taskStatus.${reportStatus(task.TaskTitle, task.TaskStatus)}.label`)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

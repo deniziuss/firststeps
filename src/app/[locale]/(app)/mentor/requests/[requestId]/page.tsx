@@ -4,13 +4,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RequestStatusBadge } from "@/components/status";
 import { getI18n } from "@/i18n/server";
-import { requireRole } from "@/server/dal";
+import { getCurrentUser, requireRole } from "@/server/dal";
 import { getMentorRequest } from "@/server/repositories/help";
 import { ResolveForm } from "./resolve-form";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const { t } = await getI18n();
-  return { title: t("mentor.answerTitle") };
+// The title names the request, but only for a mentor it is assigned to (same check as the page).
+export async function generateMetadata({ params }: PageProps<"/[locale]/mentor/requests/[requestId]">): Promise<Metadata> {
+  const { t, locale } = await getI18n();
+  const generic = { title: t("mentor.answerTitle") };
+  const user = await getCurrentUser();
+  const requestId = Number((await params).requestId);
+  if (!user || (user.role !== "Mentor" && user.role !== "Admin") || !Number.isInteger(requestId)) return generic;
+  const request = await getMentorRequest(user.id, requestId, locale);
+  return request ? { title: `${request.Subject} · ${t("mentor.answerTitle")}` } : generic;
 }
 
 export default async function MentorRequestPage({ params }: PageProps<"/[locale]/mentor/requests/[requestId]">) {
