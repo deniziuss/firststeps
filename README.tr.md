@@ -62,6 +62,12 @@ Aşağıdakilerin hepsi uygulanmış ve testlerle kapsanmıştır (bkz. [docs/te
   - Hareketler GSAP ile yapılır; Lenis yumuşak kaydırması yalnızca açılış sayfasındadır; iki React Bits bileşeni uyarlanmıştır.
   - "Hareketi azalt" ayarına uyulur ve hiçbir içerik animasyona bağlı değildir. Ayrıntılar: [docs/design-system.md](docs/design-system.md).
 - **Güvenlik incelemesi:** Çıkışta oturum iptal edilir, şifre değişince diğer oturumlar kapanır, içerik güvenlik politikası (CSP) ve güvenlik başlıkları gönderilir, kayıtlı bağlantılar yalnızca http(s) olabilir. Bulgular, testler ve hazırlık değerlendirmesi: [docs/security.md](docs/security.md).
+- **Hesap güvenliği:**
+  - E-posta doğrulama ve tek kullanımlık bağlantıyla şifre sıfırlama.
+  - SQL Server'da kalıcı deneme sınırları ve değiştirilemeyen yönetici denetim kaydı.
+  - Sağlık ve hazırlık uç noktaları, yapılandırılmış loglar, doğrulanmış yedekler ve geri yükleme testleri.
+  - Ayrıntılar: [docs/email.md](docs/email.md), [docs/operations.md](docs/operations.md).
+  - Tablolar proposal 0006'da; ayrı bir test kopyasında denendi, geliştirme veritabanına uygulanması onay bekliyor.
 - **Arayüz:**
   - Doğal bir renk paleti: koyu orman yeşili, orman yeşili, sıcak fildişi, okr altını, sıcak boz.
   - Açık ve koyu tema.

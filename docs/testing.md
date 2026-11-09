@@ -71,6 +71,16 @@ Round 2 (`fix/comprehensive-security-performance`): unit 67/67 (adds trusted-pro
 
 Round 3 (migrations 0003 and 0004): `npm run test:db` runs the SQL ↔ TypeScript prerequisite parity (9 cases, each in a rolled-back transaction, local `FirstSteps_Dev` only); `node --env-file=.env.local scripts/test-session-restart.mjs` checks that sign-out revocation survives a server restart; `database/rollbacks/rehearse_rollback.sql` rehearses both rollbacks inside a rolled-back transaction.
 
+Round 4 (`feat/security-infrastructure-readiness`, against `FirstSteps_Test` with proposal 0006):
+- **Unit:** 88/88.
+- **E2E:** `account-security.spec.ts` (verification, reset, rate limit, audit, health, form values kept) and `account-screens.spec.ts` (new screens at 360, 390 and 1280 px, en/tr, light/dark, axe, keyboard).
+- **Database:**
+  - `database/tests/0006_verify.sql`: 11/11.
+  - `scripts/verify-0006-security.mjs` with the app login: 16/16 (token and rate-limit races, registration race, audit immutability against UPDATE, DELETE, TRUNCATE, DISABLE TRIGGER, DROP and early purge, verification backfill).
+- **Restart:** `scripts/test-session-restart.mjs`: sessions and rate limits survive a restart.
+- **Outages:** `scripts/probe-outages.mjs` covers email off and database unreachable.
+- **Logs:** `scripts/scan-logs.mjs` finds no emails, hashes, tokens, cookies or secrets in the server logs of a full E2E run and the probes.
+
 Findings and their status: [security.md](security.md).
 
 ## Document title

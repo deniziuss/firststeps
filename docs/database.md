@@ -13,7 +13,37 @@
 
 The schema was originally built and tested for a university database course on a separate server. That server is not used by this project. The migration was checked against an SSMS export of the course database by applying it to an empty database and comparing catalogs: tables, columns, types, defaults, CHECK constraints, foreign keys and indexes are identical, and all trigger and procedure bodies match apart from formatting and comments.
 
-Schema changes are added as new numbered files in `database/migrations/`; existing migrations are not edited. Migrations `0003_prerequisite_applicability.sql` ([Issue 001](issues/001-prerequisite-satisfaction.md)) and `0004_session_version.sql` (persistent session revocation) were approved and applied to the local `FirstSteps_Dev` on 2026-11-09. Proposals waiting for a decision live in `database/proposals/` and are not run by setup (currently `0005_foreign_key_indexes.sql`); see [security.md](security.md). Each has a rollback script in `database/rollbacks/`. Before any schema change, `scripts/db/backup-dev.ps1` makes and verifies a copy-only backup of `FirstSteps_Dev`.
+Schema changes are added as new numbered files in `database/migrations/`; existing migrations are not edited. Migrations `0003_prerequisite_applicability.sql` ([Issue 001](issues/001-prerequisite-satisfaction.md)) and `0004_session_version.sql` (persistent session revocation) were approved and applied to the local `FirstSteps_Dev` on 2026-11-09. Proposals waiting for a decision live in `database/proposals/` and are not run by setup (currently `0005_foreign_key_indexes.sql` and `0006_security_infrastructure.sql`); see [security.md](security.md).
+
+### Proposal 0006: security infrastructure (tested, awaiting approval for FirstSteps_Dev)
+The eight course tables keep their structure; `dbo.Users` gets one nullable column.
+
+| Object | Purpose | Keys and constraints | Retention |
+|---|---|---|---|
+| `dbo.Rate_Limit_Buckets` | Persistent fixed-window counters for sign-in, registration, password reset and verification resend | PK `BucketKey` (CHAR(64) HMAC; no email or IP stored), `CHECK Hits >= 0`, index on `WindowEndsAt` | Expired rows purged in batches of 500 |
+| `usp_RateLimit_Hit / _Peek / _Reset / _Purge` | Atomic count (UPDLOCK + HOLDLOCK), read, clear, purge | — | — |
+| `dbo.Users.EmailVerifiedAt` | When the owner confirmed the address (NULL = unverified) | Existing rows backfilled with `CreatedAt` once | — |
+| `dbo.Account_Tokens` | Single-use verification and reset tokens | FK `UserID` → Users **ON DELETE CASCADE**; `UNIQUE TokenHash` (SHA-256); `CHECK Purpose IN ('VerifyEmail','ResetPassword')`; `CHECK ExpiresAt > CreatedAt` | Removed with the user; used or expired rows can be purged later |
+| `dbo.Admin_Audit_Events` | Append-only record of administrative changes | FK `AdminUserID` → Users (no cascade: admins with history cannot be deleted); `UNIQUE EventUid`; indexes on time, entity and action; INSTEAD OF UPDATE/DELETE trigger | At least 365 days, enforced by the trigger and `usp_AdminAudit_Purge` (default 730) |
+
+**Testing**
+- Applied to `FirstSteps_Test`, a restore of a verified backup; running it twice is harmless.
+- `database/tests/0006_verify.sql`: 11/11 PASS (rolled back).
+- `04_verify.sql` passes on the same database.
+- The CI job applies all migrations plus 0006 to a fresh container.
+
+**Applying it to FirstSteps_Dev (after approval)**
+1. Run `scripts/db/backup-dev.ps1`.
+2. Run `sqlcmd -S tcp:127.0.0.1,1433 -E -C -b -d FirstSteps_Dev -i database/proposals/0006_security_infrastructure.sql`.
+3. Move the file to `database/migrations/`.
+4. Run `0006_verify.sql` and the E2E suite against `FirstSteps_Dev`.
+
+**Rollback:** `database/rollbacks/0006_rollback.sql`. It deletes the audit history; export it first if it must be kept.
+
+**Disposable databases**
+- `FirstSteps_Test` and `FirstSteps_RestoreTest` are created only by `scripts/db/restore-test.ps1` (restore of a `FirstSteps_Dev` backup) or in the CI container.
+- They hold copies of local synthetic data and are never deployment targets.
+- The app and scripts accept `DB_NAME=FirstSteps_Dev` or `FirstSteps_Test` only. Each has a rollback script in `database/rollbacks/`. Before any schema change, `scripts/db/backup-dev.ps1` makes and verifies a copy-only backup of `FirstSteps_Dev`.
 
 ### Content translations (`0002_content_translations.sql`)
 Two additional tables hold Turkish text; the eight course tables are unchanged and English stays in them.

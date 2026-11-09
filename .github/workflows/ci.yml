@@ -49,3 +49,94 @@ jobs:
       # Database-backed and end-to-end tests run locally (see docs/testing.md).
       - name: Production build
         run: npm run build
+
+  # Database integration tests in a throw-away SQL Server container (Developer edition, free for
+  # testing). It never reaches any other server: the container lives only for this job, listens on the
+  # runner's localhost, and its passwords are generated per run and masked in the log.
+  database:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      DB_NAME: FirstSteps_Test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start disposable SQL Server
+        run: |
+          SA="Sa-$(openssl rand -hex 16)-Aa1"
+          APP="App-$(openssl rand -hex 16)-Bb2"
+          SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$SA"; echo "::add-mask::$APP"; echo "::add-mask::$SECRET"
+          { echo "SA_PASSWORD=$SA"; echo "APP_PASSWORD=$APP"; echo "SESSION_SECRET=$SECRET"; } >> "$GITHUB_ENV"
+          docker run -d --name firststeps-mssql --memory 2g -e ACCEPT_EULA=Y -e MSSQL_PID=Developer -e "MSSQL_SA_PASSWORD=$SA" \
+            -p 127.0.0.1:1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+
+      - name: Install sqlcmd
+        run: |
+          if ! command -v sqlcmd >/dev/null; then
+            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+            curl -fsSL https://packages.microsoft.com/config/ubuntu/24.04/prod.list | sudo tee /etc/apt/sources.list.d/microsoft-prod.list >/dev/null
+            sudo apt-get update -q && sudo apt-get install -y -q sqlcmd
+          fi
+          sqlcmd --version
+
+      - name: Wait until SQL Server accepts connections
+        run: |
+          for i in $(seq 1 60); do
+            if sqlcmd -S tcp:127.0.0.1,1433 -U sa -P "$SA_PASSWORD" -C -Q "SELECT 1" >/dev/null 2>&1; then echo "ready after $i tries"; exit 0; fi
+            sleep 2
+          done
+          docker logs firststeps-mssql | tail -50
+          exit 1
+
+      - name: Create database, apply migrations and synthetic content
+        run: |
+          SQL="sqlcmd -S tcp:127.0.0.1,1433 -U sa -P $SA_PASSWORD -C -b"
+          $SQL -i database/ci/00_create_test_database.sql -v APP_PASSWORD="$APP_PASSWORD"
+          for f in database/migrations/*.sql; do echo "migration $f"; $SQL -d FirstSteps_Test -i "$f"; done
+          # Pending until approved for FirstSteps_Dev; the code on this branch needs it.
+          for f in database/proposals/0006_security_infrastructure.sql; do echo "proposal $f"; $SQL -d FirstSteps_Test -i "$f"; done
+          $SQL -d FirstSteps_Test -i database/local/02_seed_content.sql
+          $SQL -d FirstSteps_Test -i database/local/03_seed_translations.sql
+
+      - name: Verify procedures, triggers and constraints
+        run: |
+          SQL="sqlcmd -S tcp:127.0.0.1,1433 -U sa -P $SA_PASSWORD -C -b -d FirstSteps_Test -W"
+          $SQL -i database/local/04_verify.sql | tee verify.txt
+          if grep -q "FAIL" verify.txt; then echo "04_verify reported a failure"; exit 1; fi
+          $SQL -i database/tests/0006_verify.sql
+
+      - name: SQL / TypeScript prerequisite parity
+        env:
+          SQLCMD_SERVER: tcp:127.0.0.1,1433
+          SQLCMD_USER: sa
+        run: SQLCMD_PASSWORD="$SA_PASSWORD" npm run test:db
+
+      - name: App readiness against the test database (least-privilege login)
+        env:
+          DB_SERVER: 127.0.0.1
+          DB_PORT: "1433"
+          DB_USER: firststeps_app
+          DB_ENCRYPT: "true"
+          DB_TRUST_SERVER_CERT: "true"
+          MAIL_TRANSPORT: disabled
+        run: |
+          npm run build
+          DB_PASSWORD="$APP_PASSWORD" npx next start -p 3200 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3200/api/health >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:3200/api/ready | tee ready.json
+          grep -q '"status":"ready"' ready.json
+
+      - name: Remove the container
+        if: always()
+        run: docker rm -f firststeps-mssql || true
