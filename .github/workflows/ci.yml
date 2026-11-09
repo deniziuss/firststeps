@@ -78,17 +78,19 @@ jobs:
           SECRET="$(openssl rand -hex 32)"
           echo "::add-mask::$SA"; echo "::add-mask::$APP"; echo "::add-mask::$SECRET"
           { echo "SA_PASSWORD=$SA"; echo "APP_PASSWORD=$APP"; echo "SESSION_SECRET=$SECRET"; } >> "$GITHUB_ENV"
+          # The repository is mounted read-only at the same path, so sqlcmd inside the container can read
+          # the migration and test scripts.
           docker run -d --name firststeps-mssql --memory 2g -e ACCEPT_EULA=Y -e MSSQL_PID=Developer -e "MSSQL_SA_PASSWORD=$SA" \
-            -p 127.0.0.1:1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" -p 127.0.0.1:1433:1433 mcr.microsoft.com/mssql/server:2022-latest
 
-      - name: Install sqlcmd
+      # Uses the sqlcmd that ships inside the SQL Server image (no extra package source on the runner).
+      - name: Provide sqlcmd from the container
         run: |
-          if ! command -v sqlcmd >/dev/null; then
-            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
-            curl -fsSL https://packages.microsoft.com/config/ubuntu/24.04/prod.list | sudo tee /etc/apt/sources.list.d/microsoft-prod.list >/dev/null
-            sudo apt-get update -q && sudo apt-get install -y -q sqlcmd
-          fi
-          sqlcmd --version
+          mkdir -p "$HOME/.local/bin"
+          echo '#!/bin/sh' > "$HOME/.local/bin/sqlcmd"
+          echo 'exec docker exec -i -w "$PWD" firststeps-mssql /opt/mssql-tools18/bin/sqlcmd "$@"' >> "$HOME/.local/bin/sqlcmd"
+          chmod +x "$HOME/.local/bin/sqlcmd"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Wait until SQL Server accepts connections
         run: |

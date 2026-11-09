@@ -1,7 +1,4 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { isTemplateApplicable, type JourneyProfile, type TemplateRule } from "@/domain/journeyEngine";
 import { checkTransition } from "@/domain/prerequisites";
@@ -34,6 +31,7 @@ const CASES: Case[] = [
 // Connection for the SQL side: the local instance with Windows authentication by default; CI passes a
 // disposable container with SQL authentication (SQLCMD_USER / SQLCMD_PASSWORD) and DB_NAME=FirstSteps_Test.
 const DATABASE = process.env.DB_NAME === "FirstSteps_Test" ? "FirstSteps_Test" : "FirstSteps_Dev";
+const SQLCMD_BIN = process.env.SQLCMD_BIN ?? "sqlcmd";
 const SQLCMD = [
   "-S", process.env.SQLCMD_SERVER ?? "tcp:127.0.0.1,1433",
   ...(process.env.SQLCMD_USER ? ["-U", process.env.SQLCMD_USER, "-P", process.env.SQLCMD_PASSWORD ?? ""] : ["-E"]),
@@ -82,15 +80,9 @@ BEGIN CATCH
 END CATCH;
 IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
 `;
-  const dir = mkdtempSync(path.join(tmpdir(), "fs-parity-"));
-  try {
-    const file = path.join(dir, "case.sql");
-    writeFileSync(file, batch);
-    const output = execFileSync("sqlcmd", [...SQLCMD, "-i", file], { encoding: "utf8" });
-    return /RESULT (\w+(?: \d+)?)/.exec(output)?.[1] ?? `no result: ${output}`;
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  // One batch passed with -Q (no temporary file, so it also works through the CI container wrapper).
+  const output = execFileSync(SQLCMD_BIN, [...SQLCMD, "-Q", batch.replace(/\s*\n\s*/g, " ")], { encoding: "utf8" });
+  return /RESULT (\w+(?: \d+)?)/.exec(output)?.[1] ?? `no result: ${output}`;
 }
 
 describe("prerequisite rule: TypeScript engine", () => {
@@ -100,7 +92,7 @@ describe("prerequisite rule: TypeScript engine", () => {
 describe.runIf(process.env.RUN_DB_TESTS === "1")(`prerequisite rule: SQL trigger (${DATABASE}, rolled back)`, () => {
   CASES.forEach((c, index) => it(c.name, () => expect(sqlResult(c, index)).toBe(c.expected), 30_000));
   it("left no test rows behind", () => {
-    const output = execFileSync("sqlcmd", [...SQLCMD, "-h", "-1", "-Q", "SET NOCOUNT ON; SELECT COUNT(*) FROM dbo.Users WHERE Email LIKE N'parity-%@example.invalid'"], { encoding: "utf8" });
+    const output = execFileSync(SQLCMD_BIN, [...SQLCMD, "-h", "-1", "-Q", "SET NOCOUNT ON; SELECT COUNT(*) FROM dbo.Users WHERE Email LIKE N'parity-%@example.invalid'"], { encoding: "utf8" });
     expect(output.trim()).toBe("0");
   });
 });
