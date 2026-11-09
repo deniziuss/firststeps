@@ -174,3 +174,23 @@ test("security headers are sent on every page", async ({ request }) => {
     expect(headers["x-powered-by"], path).toBeUndefined();
   }
 });
+
+test("out-of-range and malformed ids are 'not found', never a server error", async ({ page }) => {
+  const admin = adminCredentials();
+  test.skip(!admin.email, "Run npm run db:seed-users first.");
+  await signIn(page, admin.email, admin.password);
+  for (const path of ["/admin/templates/99999999999", "/admin/templates/1e3", "/admin/templates/0", "/mentor/requests/2147483648"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Page not found" }), path).toBeVisible();
+  }
+  // An overflowing page number falls back to a valid page.
+  await page.goto("/admin/users?page=99999999999");
+  await expect(page.getByRole("heading", { level: 1, name: "Users" })).toBeVisible();
+
+  await signOut(page);
+  await register(page, "Ida", uniqueEmail("sec-ids"));
+  for (const path of ["/tasks/99999999999", "/journey/99999999999", "/journey/99999999999/report", "/tasks/-5"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Page not found" }), path).toBeVisible();
+  }
+});
