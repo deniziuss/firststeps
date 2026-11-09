@@ -13,7 +13,7 @@
 
 The schema was originally built and tested for a university database course on a separate server. That server is not used by this project. The migration was checked against an SSMS export of the course database by applying it to an empty database and comparing catalogs: tables, columns, types, defaults, CHECK constraints, foreign keys and indexes are identical, and all trigger and procedure bodies match apart from formatting and comments.
 
-Schema changes are added as new numbered files in `database/migrations/`; existing migrations are not edited. Proposals waiting for a decision live in `database/proposals/` and are not run by setup (currently `0003_prerequisite_applicability.sql`, see [Issue 001](issues/001-prerequisite-satisfaction.md)).
+Schema changes are added as new numbered files in `database/migrations/`; existing migrations are not edited. Proposals waiting for a decision live in `database/proposals/` and are not run by setup (currently `0003_prerequisite_applicability.sql`, see [Issue 001](issues/001-prerequisite-satisfaction.md), and `0004_session_version.sql`, persistent session revocation, see [security.md](security.md)).
 
 ### Content translations (`0002_content_translations.sql`)
 Two additional tables hold Turkish text; the eight course tables are unchanged and English stays in them.

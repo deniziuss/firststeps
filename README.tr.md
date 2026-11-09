@@ -60,6 +60,7 @@ Aşağıdakilerin hepsi uygulanmış ve testlerle kapsanmıştır (bkz. [docs/te
   - Aynı görsel dil öğrenci, mentor ve yönetici ekranlarında da kullanılır.
   - Hareketler GSAP ile yapılır; Lenis yumuşak kaydırması yalnızca açılış sayfasındadır; iki React Bits bileşeni uyarlanmıştır.
   - "Hareketi azalt" ayarına uyulur ve hiçbir içerik animasyona bağlı değildir. Ayrıntılar: [docs/design-system.md](docs/design-system.md).
+- **Güvenlik incelemesi:** Çıkışta oturum iptal edilir, şifre değişince diğer oturumlar kapanır, içerik güvenlik politikası (CSP) ve güvenlik başlıkları gönderilir, kayıtlı bağlantılar yalnızca http(s) olabilir. Bulgular, testler ve hazırlık değerlendirmesi: [docs/security.md](docs/security.md).
 - **Arayüz:**
   - Doğal bir renk paleti: koyu orman yeşili, orman yeşili, sıcak fildişi, okr altını, sıcak boz.
   - Açık ve koyu tema.
