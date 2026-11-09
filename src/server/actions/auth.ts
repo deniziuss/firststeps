@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { getActionI18n } from "@/i18n/server";
 import { fieldErrors, passwordChangeSchema, profileSchema, registerSchema, signInSchema } from "@/lib/validation";
 import { HOME_BY_ROLE, requireUser } from "../dal";
-import { isUniqueViolation, type ActionResult } from "../errors";
+import { isUniqueViolation, toAppError, type ActionResult } from "../errors";
+import { clientAddress } from "../client-ip";
 import { hashPassword, verifyPassword } from "../password";
 import { resetTokens, takeToken } from "../rateLimit";
 import * as users from "../repositories/users";
@@ -13,10 +14,10 @@ import { createSession, deleteSession } from "../session";
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
-// X-Forwarded-For can be set by any client, so it is only used behind a proxy that overwrites it.
+// The client address comes from the trusted proxy's entry in X-Forwarded-For (see client-ip.ts).
 async function clientKey(scope: string, email: string) {
-  const forwarded = process.env.TRUST_PROXY === "true" ? (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() : undefined;
-  return `${scope}:${forwarded ?? "direct"}:${email}`;
+  const address = clientAddress((await headers()).get("x-forwarded-for"));
+  return `${scope}:${address ?? "direct"}:${email}`;
 }
 
 export async function register(_: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
@@ -34,7 +35,8 @@ export async function register(_: ActionResult | undefined, formData: FormData):
     userId = await users.createStudent({ firstName, lastName, email, passwordHash });
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, error: t("auth.emailTaken"), fieldErrors: { email: [t("auth.emailTaken")] } };
-    throw error;
+    // Database unavailable or another unexpected failure: logged, and the form keeps its values.
+    return { ok: false, error: t(toAppError(error).key) };
   }
   await createSession(userId, passwordHash);
   redirect("/onboarding");
@@ -49,7 +51,12 @@ export async function signIn(_: ActionResult | undefined, formData: FormData): P
   const key = await clientKey("sign-in", email);
   if (!takeToken(key, 5, FIFTEEN_MINUTES)) return { ok: false, error: t("auth.tooManyAttempts") };
 
-  const account = await users.findCredentialsByEmail(email);
+  let account: Awaited<ReturnType<typeof users.findCredentialsByEmail>>;
+  try {
+    account = await users.findCredentialsByEmail(email);
+  } catch (error) {
+    return { ok: false, error: t(toAppError(error).key) };
+  }
   // Same message and similar timing for unknown email, wrong password and inactive account.
   const valid = account ? await verifyPassword(account.PasswordHash, password) : (await hashPassword(password), false);
   if (!account || !valid || !account.IsActive) return { ok: false, error: t("auth.wrongCredentials") };
